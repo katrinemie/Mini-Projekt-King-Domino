@@ -2,11 +2,13 @@ import os
 import shutil
 import random
 
-# Ny mappe til opdeling af billeder
-base_dir = os.getcwd()  # Henter den nuværende arbejdsmappe
+# Hent den nuværende arbejdsmappe
+base_dir = os.getcwd()
+
+# Mapper for splitted dataset
 splitted_dataset_dir = os.path.join(base_dir, "splitted_dataset")
 
-# Mapper for de opdelte billeder
+# Korrekt sti til mapperne
 train_full_dir = os.path.join(splitted_dataset_dir, "train", "full")
 train_cropped_dir = os.path.join(splitted_dataset_dir, "train", "cropped")
 test_full_dir = os.path.join(splitted_dataset_dir, "test", "full")
@@ -14,7 +16,8 @@ test_cropped_dir = os.path.join(splitted_dataset_dir, "test", "cropped")
 
 # Mapperne oprettes, hvis de ikke allerede findes
 for folder in [train_full_dir, train_cropped_dir, test_full_dir, test_cropped_dir]:
-    os.makedirs(folder, exist_ok=True)
+    if not os.path.exists(folder):
+        os.makedirs(folder)
 
 # Splitter billederne i træning og test
 def split_images(source_dir, train_dir, test_dir, split_ratio=0.8):
@@ -41,11 +44,20 @@ def split_images(source_dir, train_dir, test_dir, split_ratio=0.8):
         except Exception as e:
             print(f"Fejl ved kopi af {img} til testmappen: {e}")
 
-# Split de billeder
+# Korrekt sti til originalbillederne
 original_full_dir = os.path.join(base_dir, "King Domino dataset", "Full game areas")
 original_cropped_dir = os.path.join(base_dir, "King Domino dataset", "Cropped and perspective corrected boards")
 
+# Debugging: Tjek om originalmappen findes
+if not os.path.exists(original_full_dir):
+    print(f"FEJL: Stien {original_full_dir} findes ikke!")
+    exit()
+if not os.path.exists(original_cropped_dir):
+    print(f"FEJL: Stien {original_cropped_dir} findes ikke!")
+    exit()
+
+# Split de billeder
 split_images(original_full_dir, train_full_dir, test_full_dir)
 split_images(original_cropped_dir, train_cropped_dir, test_cropped_dir)
 
-print("Billederne er opdelt i træning og test, dab på den!")
+print("Billederne er opdelt i træning og test!")
