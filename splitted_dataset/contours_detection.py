@@ -1,7 +1,8 @@
-# HSV.py
+# EdgeDetection.py
 
 import os
 import cv2
+import numpy as np
 
 # Korrekt sti til din train-cropped mappe
 train_cropped_dir = r"C:\Users\katri\Documents\2 semester\Design og udvikling af ai systemer\King domino mini\Mini-Projekt-King-Domino\splitted_dataset\train\cropped"
@@ -23,15 +24,20 @@ for index, filename in enumerate(filenames):
         print(f"Kunne ikke indlæse {filename}")
         continue
 
-    # HSV-konvertering
-    image_hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    # Konverter til gråskala
+    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # Sobel Edge Detection
+    sobel_x = cv2.Sobel(gray_image, cv2.CV_64F, 1, 0, ksize=3)
+    sobel_y = cv2.Sobel(gray_image, cv2.CV_64F, 0, 1, ksize=3)
+    sobel_edges = cv2.magnitude(sobel_x, sobel_y)
 
     # Tilføj tekst med filnavnet og billede nummer
     text = f"Fil {index+1}/{len(filenames)}: {filename}"
-    cv2.putText(image_hsv, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+    cv2.putText(sobel_edges, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
-    # Vis HSV-billedet
-    cv2.imshow("HSV Billede", image_hsv)
+    # Vis billedet med Sobel-kantdetektion
+    cv2.imshow("Sobel Edges", sobel_edges)
 
     # Vent på tastetryk for at gå videre
     key = cv2.waitKey(0)  # 0 betyder vent uendeligt på tastetryk

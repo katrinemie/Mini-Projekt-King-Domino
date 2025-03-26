@@ -1,7 +1,8 @@
-# HSV.py
+# MeanBlur.py
 
 import os
 import cv2
+import numpy as np
 
 # Korrekt sti til din train-cropped mappe
 train_cropped_dir = r"C:\Users\katri\Documents\2 semester\Design og udvikling af ai systemer\King domino mini\Mini-Projekt-King-Domino\splitted_dataset\train\cropped"
@@ -14,6 +15,9 @@ if not os.path.exists(train_cropped_dir):
 # Hent alle filerne i mappen
 filenames = os.listdir(train_cropped_dir)
 
+# Mean Kernel Blur
+kernel = np.ones((5,5), np.float32) / 25  
+
 # Loop gennem billeder i train_cropped_dir
 for index, filename in enumerate(filenames):
     img_path = os.path.join(train_cropped_dir, filename)
@@ -23,15 +27,15 @@ for index, filename in enumerate(filenames):
         print(f"Kunne ikke indlæse {filename}")
         continue
 
-    # HSV-konvertering
-    image_hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    # Apply Mean Kernel Blur
+    image_blur = cv2.filter2D(image, -1, kernel)
 
     # Tilføj tekst med filnavnet og billede nummer
     text = f"Fil {index+1}/{len(filenames)}: {filename}"
-    cv2.putText(image_hsv, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+    cv2.putText(image_blur, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
-    # Vis HSV-billedet
-    cv2.imshow("HSV Billede", image_hsv)
+    # Vis det uskarpe billede
+    cv2.imshow("Blurred Billede", image_blur)
 
     # Vent på tastetryk for at gå videre
     key = cv2.waitKey(0)  # 0 betyder vent uendeligt på tastetryk
