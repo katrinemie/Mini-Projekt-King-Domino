@@ -44,20 +44,7 @@ def get_terrain(tile):
     
     return "Unknown"
 
-y_true = ["Field", "Lake", "Forest", "Field", "Mine", "Swamp"]
-y_pred = ["Field", "Forest", "Forest", "Field", "Mine", "Field"]
 
-labels = ["Field", "Lake", "Forest", "Grassland", "Swamp", "Mine"]
-cm = confusion_matrix(y_true, y_pred, labels=labels)
-
-print("Confusion matrix:")
-print(cm)
-
-# Visualisering
-sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=labels, yticklabels=labels)
-plt.xlabel("Predicted")
-plt.ylabel("True")
-plt.show()
 
 # 2) Sti til mappen med billederne 
 image_folder = r"/Users/lanjakhorshid/Desktop/Mini-Projekt-King-Domino-5/King Domino dataset/Cropped and perspective corrected boards"
