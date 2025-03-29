@@ -25,21 +25,31 @@ for index, filename in enumerate(filenames):
     # Konverter til gråskala
     gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    # Sobel Edge Detection
-    sobel_x = cv2.Sobel(gray_image, cv2.CV_64F, 1, 0, ksize=3)
-    sobel_y = cv2.Sobel(gray_image, cv2.CV_64F, 0, 1, ksize=3)
-    sobel_edges = cv2.magnitude(sobel_x, sobel_y)
+    # Brug Canny Edge Detection til at finde kanter
+    edges = cv2.Canny(gray_image, 100, 200)
 
-    # Normalisering af Sobel-kanter
-    sobel_edges = cv2.normalize(sobel_edges, None, 0, 255, cv2.NORM_MINMAX)
-    sobel_edges = np.uint8(sobel_edges)  # Konverter til CV_8U
+    # Find konturer i kantbilledet
+    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Gennemgå konturerne
+    for contour in contours:
+        # Hvis konturen er stor nok, forsøger vi at finde en firkant (kroneform)
+        if cv2.contourArea(contour) > 500:  # Filtrér små konturer
+            # Approximér konturen til en polygon
+            epsilon = 0.04 * cv2.arcLength(contour, True)
+            approx = cv2.approxPolyDP(contour, epsilon, True)
+
+            # Hvis polygonen har 4 hjørner, er det en firkant (som en krone)
+            if len(approx) == 4:
+                # Tegn en linje rundt om kongekronen
+                cv2.drawContours(image, [approx], -1, (0, 255, 255), 3)  # Gul farve (BGR format)
 
     # Tilføj tekst med filnavnet og billede nummer
     text = f"Fil {index+1}/{len(filenames)}: {filename}"
-    cv2.putText(sobel_edges, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+    cv2.putText(image, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
-    # Vis billedet med Sobel-kantdetektion
-    cv2.imshow("Sobel Edges", sobel_edges)
+    # Vis det behandlet billede
+    cv2.imshow("Kongekroner Markerede", image)
 
     # Vent på tastetryk for at gå videre
     key = cv2.waitKey(0)  # 0 betyder vent uendeligt på tastetryk

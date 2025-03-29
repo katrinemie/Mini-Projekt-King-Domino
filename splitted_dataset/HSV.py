@@ -1,20 +1,20 @@
-# HSV.py
+
 
 import os
 import cv2
 
-# Korrekt sti til din train-cropped mappe
+#path til mappen
 train_cropped_dir = r"C:\Users\katri\Documents\2 semester\Design og udvikling af ai systemer\King domino mini\Mini-Projekt-King-Domino\splitted_dataset\train\cropped"
 
-# Debugging: Tjek om mappen findes
+#om mappen findes
 if not os.path.exists(train_cropped_dir):
     print(f"FEJL: Stien {train_cropped_dir} findes ikke!")
     exit()
 
-# Hent alle filerne i mappen
+#Hent bare alle filerne i mappen
 filenames = os.listdir(train_cropped_dir)
 
-# Loop gennem billeder i train_cropped_dir
+#Loop gennem billeder
 for index, filename in enumerate(filenames):
     img_path = os.path.join(train_cropped_dir, filename)
     image = cv2.imread(img_path)
@@ -23,21 +23,21 @@ for index, filename in enumerate(filenames):
         print(f"Kunne ikke indlæse {filename}")
         continue
 
-    # HSV-konvertering
+    #HSV konvertering
     image_hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
-    # Tilføj tekst med filnavnet og billede nummer
+    #Tilføjer billede tal osv
     text = f"Fil {index+1}/{len(filenames)}: {filename}"
     cv2.putText(image_hsv, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
-    # Vis HSV-billedet
+    #viswr HSV billedet
     cv2.imshow("HSV Billede", image_hsv)
 
-    # Vent på tastetryk for at gå videre
-    key = cv2.waitKey(0)  # 0 betyder vent uendeligt på tastetryk
-    if key == 27:  # Hvis ESC-tasten trykkes, lukkes programmet
+    
+    key = cv2.waitKey(0)  
+    if key == 27:  
         print("Programmet blev afsluttet.")
         break
 
-# Luk alle vinduer når programmet stopper
+
 cv2.destroyAllWindows()
