@@ -1,5 +1,3 @@
-# EdgeDetection.py
-
 import os
 import cv2
 import numpy as np
@@ -31,6 +29,10 @@ for index, filename in enumerate(filenames):
     sobel_x = cv2.Sobel(gray_image, cv2.CV_64F, 1, 0, ksize=3)
     sobel_y = cv2.Sobel(gray_image, cv2.CV_64F, 0, 1, ksize=3)
     sobel_edges = cv2.magnitude(sobel_x, sobel_y)
+
+    # Normalisering af Sobel-kanter
+    sobel_edges = cv2.normalize(sobel_edges, None, 0, 255, cv2.NORM_MINMAX)
+    sobel_edges = np.uint8(sobel_edges)  # Konverter til CV_8U
 
     # Tilføj tekst med filnavnet og billede nummer
     text = f"Fil {index+1}/{len(filenames)}: {filename}"
