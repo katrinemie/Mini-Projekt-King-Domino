@@ -47,8 +47,7 @@ def get_terrain(tile):
 
 
 # 2) Sti til mappen med billederne 
-image_folder = r"/Users/lanjakhorshid/Desktop/Mini-Projekt-King-Domino-5/King Domino dataset/Cropped and perspective corrected boards"
-
+image_folder = "Mini-Projekt-King-Domino-1/splitted_dataset/train/cropped"
 # 3) Find alle billeder i mappen
 image_files = glob.glob(os.path.join(image_folder, "*.[Jj][Pp][Gg]"))
 if not image_files:

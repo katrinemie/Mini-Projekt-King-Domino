@@ -5,8 +5,7 @@ import cv2
 import numpy as np
 
 # Korrekt sti til din train-cropped mappe
-train_cropped_dir = r"C:\Users\katri\Documents\2 semester\Design og udvikling af ai systemer\King domino mini\Mini-Projekt-King-Domino\splitted_dataset\train\cropped"
-
+train_cropped_dir = "King Domino dataset/Cropped and perspective corrected boards"
 # Debugging: Tjek om mappen findes
 if not os.path.exists(train_cropped_dir):
     print(f"FEJL: Stien {train_cropped_dir} findes ikke!")
