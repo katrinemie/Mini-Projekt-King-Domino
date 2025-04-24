@@ -16,23 +16,32 @@ def visualize_ground_truth(csv_path, tile_folder, output_folder=None, show_image
             filepath = os.path.join(tile_folder, filename)
 
             if not os.path.exists(filepath):
-                print(f"⚠️ Mangler billede: {filename}")
+                print(f" Mangler billede: {filename}")
                 continue
 
             image = cv2.imread(filepath)
             if image is None:
-                print(f"⚠️ Kunne ikke åbne: {filepath}")
+                print(f" Kunne ikke åbne: {filepath}")
                 continue
 
-            # Skriv label på billede
-            label = f"{terrain} – {crowns} krone{'r' if crowns != 1 else ''}"
-            cv2.rectangle(image, (0, 0), (image.shape[1], 30), (255, 255, 255), -1)
-            cv2.putText(image, label, (5, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (50, 50, 255), 2)
+            # Forbedret label-stil nederst
+            label = f"{terrain} ({crowns})"
+            label_position = (5, image.shape[0] - 5)
+            font = cv2.FONT_HERSHEY_SIMPLEX
+
+            # Semi-transparent baggrund
+            overlay = image.copy()
+            cv2.rectangle(overlay, (0, image.shape[0] - 20), (image.shape[1], image.shape[0]), (255, 255, 255), -1)
+            alpha = 0.5
+            image = cv2.addWeighted(overlay, alpha, image, 1 - alpha, 0)
+
+            # Tekst
+            cv2.putText(image, label, label_position, font, 0.5, (0, 0, 0), 1)
 
             # Vis eller gem
             if show_images:
                 cv2.imshow(f"{filename}", image)
-                key = cv2.waitKey(500)  # vis i 500 ms
+                key = cv2.waitKey(500)
                 if key == 27:  # ESC
                     break
                 cv2.destroyAllWindows()
@@ -49,3 +58,4 @@ tile_folder = r"C:\Users\katri\Desktop\Kingkat\All_Tiles"
 output_folder = r"C:\Users\katri\Desktop\Kingkat\Visualiseret"
 
 visualize_ground_truth(csv_path, tile_folder, output_folder=output_folder, show_images=False)
+
