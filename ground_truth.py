@@ -30,7 +30,7 @@ def split_labels_and_generate_ground_truth(input_csv, output_csv):
     print(f"✅ Ny ground truth CSV gemt: {output_csv}")
 
 # === Korrekte stier ===
-input_csv = r"C:\Users\katri\Documents\2 semester\Design og udvikling af ai systemer\Mini projekt king domino\Mini-Projekt-King-Domino\tile_gt_with_crowns.csv"
+input_csv = r"tiles_crowns.csv"
 output_csv = r"ground_truth_train_split.csv"
 
 split_labels_and_generate_ground_truth(input_csv, output_csv)

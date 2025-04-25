@@ -5,7 +5,22 @@ import glob
 from sklearn.metrics import confusion_matrix, accuracy_score
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pandas as pd
 
+def ground_truth_from_csv(csv_path):
+    df = pd.read_csv(csv_path)
+    ground_truth = {}
+
+    for img_id in df['image_id'].unique():
+        matrix = np.zeros((5, 5), dtype=int)
+        subset = df[df['image_id'] == img_id]
+        for _, row in subset.iterrows():
+            col = int(row['x'] // 100)
+            r = int(row['y'] // 100)
+            matrix[r, col] = int(row['crowns'])
+        ground_truth[f"{img_id}.jpg"] = matrix
+
+    return ground_truth
 
 class CrownDetector:
     def __init__(self, input_folder, template_paths, output_folder, scales, angles, threshold=0.6, highlight_color=(255, 182, 193)):
@@ -142,15 +157,8 @@ if __name__ == "__main__":
         angles=[0, 90, 180, 270],
         threshold=0.6
     )
+# Indlæs ground truth fra CSV
+    ground_truth = ground_truth_from_csv('ground_truth_train_split.csv')
 
-    ground_truth = {
-        'board1.jpg': np.array([
-            [0,1,0,0,2],
-            [0,0,0,1,0],
-            [0,0,0,0,0],
-            [1,0,0,0,0],
-            [0,0,2,0,0]
-        ])
-    }
-
+    # Kør detektor
     detector.process_images(ground_truth)

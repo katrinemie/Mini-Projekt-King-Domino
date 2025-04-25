@@ -123,3 +123,4 @@ if __name__ == "__main__":
     )
     classifier.train_svm()
     classifier.process_images()
+
