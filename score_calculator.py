@@ -14,11 +14,6 @@ debug_folder = os.path.join(output_folder, "debug_tiles")
 os.makedirs(output_folder, exist_ok=True)
 os.makedirs(debug_folder, exist_ok=True)
 
-# === Indlæs krone-template ===
-crown_template = cv.imread("score_crown.jpg")
-if crown_template is None:
-    raise FileNotFoundError("Kunne ikke finde krone-template: score_crown.jpg")
-
 # === Funktioner ===
 def get_tiles(image):
     return [[image[y*tile_size:(y+1)*tile_size, x*tile_size:(x+1)*tile_size] for x in range(cols)] for y in range(rows)]
@@ -42,29 +37,41 @@ def get_terrain(tile):
         return "Unknown"
     return "Home"
 
-def non_max_suppression(centers, min_dist=10):
-    final_centers = []
-    for cx, cy in centers:
-        if all(np.hypot(cx - fx, cy - fy) > min_dist for fx, fy in final_centers):
-            final_centers.append((cx, cy))
-    return final_centers
-
 def count_crowns(tile):
-    gray_tile = cv.cvtColor(tile, cv.COLOR_BGR2GRAY)
-    gray_template = cv.cvtColor(crown_template, cv.COLOR_BGR2GRAY)
+    hsv = cv.cvtColor(tile, cv.COLOR_BGR2HSV)
+    lower_yellow = np.array([22, 140, 140])
+    upper_yellow = np.array([33, 255, 255])
+    mask = cv.inRange(hsv, lower_yellow, upper_yellow)
 
-    result = cv.matchTemplate(gray_tile, gray_template, cv.TM_CCOEFF_NORMED)
-    threshold = 0.65
-    loc = np.where(result >= threshold)
+    # Kontur-baseret filtering
+    kernel = np.ones((3, 3), np.uint8)
+    mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
+    mask = cv.morphologyEx(mask, cv.MORPH_CLOSE, kernel)
 
-    centers = []
-    w, h = gray_template.shape[::-1]
-    for pt in zip(*loc[::-1]):
-        center = (pt[0] + w // 2, pt[1] + h // 2)
-        centers.append(center)
+    contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    crown_count = 0
+    for cnt in contours:
+        area = cv.contourArea(cnt)
+        if 80 < area < 800:
+            perimeter = cv.arcLength(cnt, True)
+            if perimeter == 0:
+                continue
+            circularity = 4 * np.pi * (area / (perimeter ** 2))
+            if circularity > 0.3:
+                crown_count += 1
 
-    final_centers = non_max_suppression(centers)
-    return len(final_centers)
+    debug_tile = tile.copy()
+    for cnt in contours:
+        if 80 < cv.contourArea(cnt) < 800:
+            x, y, w, h = cv.boundingRect(cnt)
+            cv.rectangle(debug_tile, (x, y), (x+w, y+h), (0, 255, 0), 1)
+    cv.putText(debug_tile, f"Crowns: {crown_count}", (5, 90), cv.FONT_HERSHEY_SIMPLEX, 0.4, (0,255,0), 1)
+    tile_index = count_crowns.tile_id
+    cv.imwrite(os.path.join(debug_folder, f"tile_final_{tile_index}.jpg"), debug_tile)
+    count_crowns.tile_id += 1
+
+    return crown_count
+count_crowns.tile_id = 0
 
 def find_areas(board):
     visited = [[False]*cols for _ in range(rows)]
@@ -105,7 +112,6 @@ def annotate_board(image, board, area_map, area_scores, total_score, filename):
     scale = 0.4
     thickness = 1
     overlay = image.copy()
-    debug_overlay = image.copy()
     area_colors = {area_id: (random.randint(60, 255), random.randint(60, 255), random.randint(60, 255))
                    for area_id in set(filter(lambda x: x is not None, sum(area_map, [])))}
 
@@ -130,15 +136,9 @@ def annotate_board(image, board, area_map, area_scores, total_score, filename):
                     cv.putText(overlay, line, (x + 3, y + 15 + i * 15), font, scale,
                                (255, 255, 255), thickness, cv.LINE_AA)
 
-            debug_text = f"{terrain[:2]}-{crowns}"
-            cv.putText(debug_overlay, debug_text, (x + 10, y + 50), font, 0.5, (0, 0, 255), 1, cv.LINE_AA)
-
     cv.rectangle(overlay, (0, tile_size * rows), (tile_size * cols, tile_size * rows + 30), (0, 0, 0), -1)
     cv.putText(overlay, f"Total score: {total_score}", (10, tile_size * rows + 22), font,
                0.6, (255, 255, 255), 1, cv.LINE_AA)
-
-    debug_path = os.path.join(debug_folder, f"score_calculator_debug_{filename}")
-    cv.imwrite(debug_path, debug_overlay)
 
     return overlay
 
@@ -167,7 +167,7 @@ def compare_with_ground_truth(predicted_scores, ground_truth_csv):
         mae = sum(errors) / len(errors)
         print(f"\n📊 Gennemsnitlig fejl (MAE): {mae:.2f}")
     else:
-        print(" Ingen matchende billeder fundet i ground truth CSV.")
+        print("⚠️ Ingen matchende billeder fundet i ground truth CSV.")
 
 # === HOVEDKØRSEL ===
 score_data = []
@@ -177,7 +177,7 @@ for filename in sorted(os.listdir(input_folder)):
         image_path = os.path.join(input_folder, filename)
         image = cv.imread(image_path)
         if image is None:
-            print(f" Kunne ikke indlæse: {filename}")
+            print(f"❌ Kunne ikke indlæse: {filename}")
             continue
 
         tiles = get_tiles(image)
@@ -189,11 +189,11 @@ for filename in sorted(os.listdir(input_folder)):
         output_img_path = os.path.join(output_folder, f"score_calculator_output_{filename}")
         cv.imwrite(output_img_path, annotated)
         score_data.append((filename, total_score))
-        print(f" Gemte: {output_img_path} | Score: {total_score}")
+        print(f"✔ Gemte: {output_img_path} | Score: {total_score}")
 
 save_score_csv(score_data)
-print("\n Alle billeder behandlet og gemt i 'outputs/'")
-print(" Scores gemt i: outputs/scores.csv")
+print("\n✔ Alle billeder behandlet og gemt i 'outputs/'")
+print("✔ Scores gemt i: outputs/scores.csv")
 
 # Sammenlign med ground truth
 compare_with_ground_truth(score_data, "ground_truth_scores.csv")
