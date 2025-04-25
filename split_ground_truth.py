@@ -30,5 +30,5 @@ with open(output_csv, "w", newline='', encoding='utf-8') as f:
     writer.writeheader()
     writer.writerows(filtered_rows)
 
-print(f"✅ Filtreret ground truth gemt som: {output_csv}")
-print(f"📊 Antal gemte rækker: {len(filtered_rows)}")
+print(f"Filtreret ground truth gemt som: {output_csv}")
+print(f"Antal gemte rækker: {len(filtered_rows)}")

@@ -179,8 +179,7 @@ class NeighbourDetector:
         print("\nNOTE: Dette er simulerede data! For reel evaluering, tilføj ground truth.")
 
 if __name__ == "__main__":
-    INPUT_FOLDER = 'splitted_dataset/train/cropped'  # Tilpas
-    GROUND_TRUTH_CSV = None  # Sæt til sti hvis du har ground truth
-    
+    INPUT_FOLDER = 'splitted_dataset/train/cropped'  
+    GROUND_TRUTH_CSV = 'ground_truth_train_split.csv'  
     detector = NeighbourDetector(INPUT_FOLDER, GROUND_TRUTH_CSV)
     detector.process_images()
