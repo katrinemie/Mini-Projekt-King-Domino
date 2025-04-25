@@ -11,9 +11,7 @@ rows, cols = 5, 5
 input_folder = "splitted_dataset/train/cropped"
 ground_truth_csv = "ground_truth_scores.csv"
 output_folder = "outputs"
-debug_folder = os.path.join(output_folder, "debug_tiles")
 os.makedirs(output_folder, exist_ok=True)
-os.makedirs(debug_folder, exist_ok=True)
 
 # === Funktioner ===
 def get_tiles(image):
@@ -21,8 +19,7 @@ def get_tiles(image):
 
 def get_terrain(tile):
     hsv_tile = cv.cvtColor(tile, cv.COLOR_BGR2HSV)
-    hue, saturation, value = np.median(hsv_tile.reshape(-1, 3), axis=0)
-
+    hue, saturation, value = np.median(hsv_tile, axis=(0,1))
     if 21.5 < hue < 27.5 and 225 < saturation < 255 and 104 < value < 210:
         return "Field"
     if 25 < hue < 60 and 88 < saturation < 247 and 24 < value < 78:
@@ -96,14 +93,37 @@ def find_areas(board):
 
 def annotate_board(image, board, area_map, area_scores, total_score, filename):
     font = cv.FONT_HERSHEY_SIMPLEX
+    scale = 0.4
+    thickness = 1
     overlay = image.copy()
+    area_colors = {area_id: (random.randint(60, 255), random.randint(60, 255), random.randint(60, 255))
+                   for area_id in set(filter(lambda x: x is not None, sum(area_map, [])))}
+
     for r in range(rows):
         for c in range(cols):
             x, y = c * tile_size, r * tile_size
             terrain, crowns = board[r][c]
-            cv.putText(overlay, f"{terrain[:2]}-{crowns}", (x + 10, y + 50), font, 0.5, (0, 0, 255), 1, cv.LINE_AA)
+            area_id = area_map[r][c]
+
+            if area_id is not None:
+                color = area_colors[area_id]
+                cv.rectangle(overlay, (x, y), (x + tile_size, y + tile_size), color, 2)
+
+            if terrain not in ("Home", "Unknown"):
+                text_lines = [f"{terrain}", f"{crowns} crown(s)"]
+                if area_id is not None:
+                    text_lines.append(f"A#{area_id} ({area_scores[area_id]}p)")
+
+                for i, line in enumerate(text_lines):
+                    cv.putText(overlay, line, (x + 3, y + 15 + i * 15), font, scale,
+                               (0, 0, 0), thickness + 1, cv.LINE_AA)
+                    cv.putText(overlay, line, (x + 3, y + 15 + i * 15), font, scale,
+                               (255, 255, 255), thickness, cv.LINE_AA)
+
+    cv.rectangle(overlay, (0, tile_size * rows), (tile_size * cols, tile_size * rows + 30), (0, 0, 0), -1)
     cv.putText(overlay, f"Total score: {total_score}", (10, tile_size * rows + 22), font,
                0.6, (255, 255, 255), 1, cv.LINE_AA)
+
     return overlay
 
 def save_score_csv(score_data, csv_path="outputs/scores.csv"):
@@ -117,14 +137,11 @@ def compare_with_ground_truth(predicted_scores, ground_truth_csv):
     with open(ground_truth_csv, mode="r") as file:
         reader = csv.DictReader(file)
         for row in reader:
-            image_name = row.get("Image") or row.get("image") or row.get("image_id")
-            score_val = row.get("Score") or row.get("score")
-            if image_name and score_val:
-                ground_truth[image_name] = int(score_val)
+            ground_truth[row["Image"]] = int(row["Score"])
 
     errors = []
     for filename, pred_score in predicted_scores:
-        true_score = ground_truth.get(filename)
+        true_score = ground_truth.get(filename, None)
         if true_score is not None:
             error = abs(pred_score - true_score)
             errors.append(error)
@@ -134,7 +151,7 @@ def compare_with_ground_truth(predicted_scores, ground_truth_csv):
         mae = sum(errors) / len(errors)
         print(f"\n📊 Gennemsnitlig fejl (MAE): {mae:.2f}")
     else:
-        print("⚠️ Ingen matchende billeder fundet i ground truth CSV.")
+        print("\u26a0\ufe0f Ingen matchende billeder fundet i ground truth CSV.")
 
 # === HOVEDKØRSEL ===
 score_data = []
