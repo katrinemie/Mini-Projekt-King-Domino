@@ -8,7 +8,7 @@ class TileClassifier:
         self.input_folder = input_folder
         self.image_paths = glob.glob(os.path.join(input_folder, '*.jpg'))
         if not self.image_paths:
-            raise FileNotFoundError("❌ Ingen billeder fundet i mappen.")
+            raise FileNotFoundError(" Ingen billeder fundet i mappen.")
 
     def classify_tile(self, tile):
         hsv = cv2.cvtColor(tile, cv2.COLOR_BGR2HSV)
@@ -56,7 +56,7 @@ class TileClassifier:
         for path in self.image_paths:
             img = cv2.imread(path)
             if img is None:
-                print(f"⚠️ Kunne ikke læse billedet: {path}")
+                print(f" Kunne ikke læse billedet: {path}")
                 continue
 
             tiles = self.split_to_tiles(img)
@@ -76,7 +76,7 @@ class TileClassifier:
             cv2.waitKey(0)
             cv2.destroyAllWindows()
 
-# === Kør programmet ===
+
 if __name__ == "__main__":
     classifier = TileClassifier(input_folder='splitted_dataset/train/cropped')
     classifier.process_images()
