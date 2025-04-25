@@ -16,7 +16,7 @@ class CrownDetector:
 
         image_paths = glob.glob(os.path.join(self.input_folder, '*.jpg'))
         if not image_paths:
-            raise FileNotFoundError("❌ Ingen billeder fundet i input-mappen.")
+            raise FileNotFoundError("Ingen billeder fundet i input-mappen.")
         self.image_paths = image_paths
 
         os.makedirs(self.output_folder, exist_ok=True)
@@ -26,11 +26,11 @@ class CrownDetector:
         for path in self.template_paths:
             template = cv2.imread(path)
             if template is None:
-                print(f"⚠️ Kunne ikke finde template: {path}")
+                print(f" Kunne ikke finde template: {path}")
                 continue
             templates.append(cv2.resize(template, (34, 29)))
         if not templates:
-            raise ValueError("❌ Ingen valide templates blev indlæst!")
+            raise ValueError(" Ingen valide templates blev indlæst!")
         return templates
 
     def rotate_image(self, image, angle):
@@ -50,7 +50,7 @@ class CrownDetector:
             filename = os.path.basename(img_path)
             board_img = cv2.imread(img_path)
             if board_img is None:
-                print(f"⚠️ Kunne ikke læse {filename}")
+                print(f" Kunne ikke læse {filename}")
                 continue
 
             self.detect_crowns(board_img, filename)
@@ -103,7 +103,7 @@ class CrownDetector:
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-# === Main ===
+#Main
 if __name__ == "__main__":
     detector = CrownDetector(
         input_folder='splitted_dataset/train/cropped',
