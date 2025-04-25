@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-
 class CrownDetector:
     def __init__(self, input_folder, template_paths, output_folder, scales, angles, threshold=0.6, highlight_color=(255, 182, 193)):
         self.input_folder = input_folder
@@ -50,32 +49,6 @@ class CrownDetector:
         rot_mat[1, 2] += bound_h / 2 - center[1]
         return cv2.warpAffine(image, rot_mat, (bound_w, bound_h), borderValue=(255,255,255))
 
-    # ✅ Opdateret process_images med ground_truth
-    def process_images(self, ground_truth):
-        total_tiles = 0
-        tiles_with_crowns = 0
-
-        for img_path in self.image_paths:
-            filename = os.path.basename(img_path)
-            board_img = cv2.imread(img_path)
-            if board_img is None:
-                print(f"⚠️ Kunne ikke læse {filename}")
-                continue
-
-            crown_counts = self.detect_crowns(board_img, filename)
-            total_tiles += 25  # 5x5 grid
-            tiles_with_crowns += np.count_nonzero(crown_counts)
-
-            # === Beregn og print accuracy ===
-            if filename in ground_truth:
-                gt_counts = ground_truth[filename]
-                metrics = evaluate_detection(crown_counts, gt_counts)
-                print(f"{filename} - Accuracy: {metrics['Accuracy']:.2f} | TP: {metrics['TP']} | FP: {metrics['FP']} | FN: {metrics['FN']}")
-            else:
-                print(f"{filename} - Ingen ground truth tilgængelig")
-
-        return tiles_with_crowns, total_tiles
-
     def detect_crowns(self, board_img, filename):
         board_height, board_width = board_img.shape[:2]
         tile_height = board_height // 5
@@ -109,15 +82,75 @@ class CrownDetector:
                 rects = cv2.groupRectangles(found_rects, groupThreshold=1, eps=0.5)[0] if found_rects else []
                 total_matches = len(rects)
 
-                for (x, y, w, h) in rects:
-                    top_left = (x_start + x, y_start + y)
-                    bottom_right = (top_left[0] + w, top_left[1] + h)
-                    cv2.rectangle(board_img, top_left, bottom_right, self.highlight_color, 2)
-
                 crown_counts[row, col] = total_matches
                 if total_matches > 0:
                     print(f"{filename} - Tile ({row},{col}) - Fundne kroner efter NMS: {total_matches}")
 
         return crown_counts
 
+    def process_images(self, ground_truth):
+        y_true = []
+        y_pred = []
 
+        for img_path in self.image_paths:
+            filename = os.path.basename(img_path)
+            board_img = cv2.imread(img_path)
+            if board_img is None:
+                print(f"⚠️ Kunne ikke læse {filename}")
+                continue
+
+            crown_counts = self.detect_crowns(board_img, filename)
+
+            if filename in ground_truth:
+                gt_counts = ground_truth[filename]
+
+                for r in range(5):
+                    for c in range(5):
+                        true_label = 1 if gt_counts[r, c] > 0 else 0
+                        pred_label = 1 if crown_counts[r, c] > 0 else 0
+                        y_true.append(true_label)
+                        y_pred.append(pred_label)
+            else:
+                print(f"{filename} - Ingen ground truth tilgængelig")
+
+        if y_true:
+            cm = confusion_matrix(y_true, y_pred, labels=[1, 0])
+            acc = accuracy_score(y_true, y_pred) * 100
+
+            print(f"\nSamlet Crown Detection Accuracy: {acc:.2f}%")
+            print("Confusion Matrix:\n", cm)
+
+            plt.figure(figsize=(6,5))
+            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Crown', 'No Crown'], yticklabels=['Crown', 'No Crown'])
+            plt.xlabel('Predicted')
+            plt.ylabel('True')
+            plt.title('Confusion Matrix for Crown Detection')
+            plt.show()
+        else:
+            print("Ingen data til beregning af confusion matrix.")
+
+
+if __name__ == "__main__":
+    detector = CrownDetector(
+        input_folder='splitted_dataset/train/cropped',
+        template_paths=[
+            'crown_templates/Skærmbillede 2025-04-23 kl. 13.08.35.png',
+            'crown_templates/Skærmbillede 2025-04-23 kl. 13.08.47.png'
+        ],
+        output_folder='output',
+        scales=[0.8, 1.0, 1.2],
+        angles=[0, 90, 180, 270],
+        threshold=0.6
+    )
+
+    ground_truth = {
+        'board1.jpg': np.array([
+            [0,1,0,0,2],
+            [0,0,0,1,0],
+            [0,0,0,0,0],
+            [1,0,0,0,0],
+            [0,0,2,0,0]
+        ])
+    }
+
+    detector.process_images(ground_truth)
