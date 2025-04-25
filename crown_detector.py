@@ -31,7 +31,7 @@ class CrownDetector:
                 continue
             templates.append(cv2.resize(template, (34, 29)))
         if not templates:
-            raise ValueError("Ingen valide templates blev indlæst!")
+            raise ValueError("❌ Ingen valide templates blev indlæst!")
         return templates
 
     def rotate_image(self, image, angle):
@@ -144,7 +144,7 @@ def load_ground_truth_from_csv(csv_path):
 
     return ground_truth
 
-# === Main ===
+#Main
 if __name__ == "__main__":
     ground_truth_counts = load_ground_truth_from_csv("ground_truth_split.csv")
 
