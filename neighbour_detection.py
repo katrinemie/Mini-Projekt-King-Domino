@@ -3,140 +3,146 @@ import numpy as np
 import os
 import glob
 from sklearn.metrics import confusion_matrix, accuracy_score
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
-class TileAnalyzer:
+class EnhancedTileAnalyzer(TileAnalyzer):
     def __init__(self, input_folder, ground_truth_folder):
-        self.input_folder = input_folder
-        self.ground_truth_folder = ground_truth_folder  # Folder for the ground truth images
-        self.image_paths = glob.glob(os.path.join(input_folder, '*.jpg'))
-        if not self.image_paths:
-            raise FileNotFoundError("❌ Ingen billeder fundet i mappen.")
+        super().__init__(input_folder, ground_truth_folder)
+        # Definer farver for hver terræntype
+        self.terrain_colors = {
+            "Field": (255, 215, 0),       # Guld
+            "Forest": (34, 139, 34),      # Skovgrøn
+            "Lake": (65, 105, 225),       # Kongeblå
+            "Grassland": (152, 251, 152), # Lysegrøn
+            "Swamp": (139, 137, 112),    # Sumpskimmel
+            "Mine": (169, 169, 169),      # Mørkegrå
+            "Home": (255, 99, 71),        # Tomat
+            "Unknown": (220, 220, 220)   # Lysgrå
+        }
+        
+    def create_terrain_map(self, labels):
+        """Opret et farvekort over terræntyper"""
+        terrain_map = np.zeros((5, 5, 3), dtype=np.uint8)
+        for r in range(5):
+            for c in range(5):
+                terrain_map[r, c] = self.terrain_colors.get(labels[r][c], (220, 220, 220))
+        return terrain_map
     
-    def classify_tile(self, tile):
-        hsv = cv2.cvtColor(tile, cv2.COLOR_BGR2HSV)
-        hue, sat, val = np.median(hsv.reshape(-1, 3), axis=0)
-
-        if 21.5 < hue < 27.5 and 225 < sat < 255 and 104 < val < 210:
-            return "Field"
-        if 25 < hue < 60 and 88 < sat < 247 and 24 < val < 78:
-            return "Forest"
-        if 90 < hue < 130 and 100 < sat < 255 and 100 < val < 230:
-            return "Lake"
-        if 34 < hue < 46 and 150 < sat < 255 and 90 < val < 180:
-            return "Grassland"
-        if 16 < hue < 27 and 66 < sat < 180 and 75 < val < 140:
-            return "Swamp"
-        if 19 < hue < 27 and 39 < sat < 150 and 29 < val < 80:
-            return "Mine"
-        if sat < 60 and 60 < val < 200:
-            return "Home"
-        return "Unknown"
-    
-    def split_to_tiles(self, image):
+    def visualize_regions(self, image, regions, labels):
+        """Forbedret visualisering med matplotlib"""
+        plt.figure(figsize=(12, 8))
+        
+        # Terrænkort
+        plt.subplot(1, 2, 1)
+        terrain_map = self.create_terrain_map(labels)
+        plt.imshow(terrain_map)
+        plt.title('Terræntype Kort')
+        plt.axis('off')
+        
+        # Tilføj farveforklaring
+        unique_labels = set(labels[r][c] for r in range(5) for c in range(5))
+        legend_elements = [plt.Rectangle((0,0),1,1, color=np.array(self.terrain_colors[l])/255, 
+                          label=l) for l in unique_labels]
+        plt.legend(handles=legend_elements, bbox_to_anchor=(1.05, 1), loc='upper left')
+        
+        # Regioner med scores
+        plt.subplot(1, 2, 2)
+        plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        plt.title('Regionsvisualisering')
+        plt.axis('off')
+        
         h, w = image.shape[:2]
-        tile_h = h // 5
-        tile_w = w // 5
-        return [[image[y*tile_h:(y+1)*tile_h, x*tile_w:(x+1)*tile_w] for x in range(5)] for y in range(5)]
-    
-    def annotate_tiles(self, image, labels):
-        annotated = image.copy()
-        h, w = image.shape[:2]
-        tile_h = h // 5
-        tile_w = w // 5
-
-        for row in range(5):
-            for col in range(5):
-                x = col * tile_w
-                y = row * tile_h
-                label = labels[row][col]
-                cv2.putText(annotated, label, (x + 5, y + 25),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
-                cv2.rectangle(annotated, (x, y), (x + tile_w, y + tile_h), (0, 255, 0), 1)
-        return annotated
-    
-    def find_connected_areas(self, labels):
-        visited = [[False]*5 for _ in range(5)]
-        areas = []
-
-        def dfs(r, c, terrain):
-            if r < 0 or r >= 5 or c < 0 or c >= 5:
-                return 0
-            if visited[r][c] or labels[r][c] != terrain:
-                return 0
-            visited[r][c] = True
-            size = 1
-            size += dfs(r+1, c, terrain)
-            size += dfs(r-1, c, terrain)
-            size += dfs(r, c+1, terrain)
-            size += dfs(r, c-1, terrain)
-            return size
-
-        for row in range(5):
-            for col in range(5):
-                if not visited[row][col] and labels[row][col] != "Unknown":
-                    area_size = dfs(row, col, labels[row][col])
-                    if area_size > 1:
-                        areas.append((labels[row][col], area_size))
-        return areas
+        tile_h, tile_w = h // 5, w // 5
+        
+        for region in regions:
+            # Tegn regionkonturer
+            mask = np.zeros((5, 5), dtype=np.uint8)
+            for r, c in region["tiles"]:
+                mask[r, c] = 1
+            
+            # Find konturer
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            for cnt in contours:
+                cnt = cnt.squeeze() * [tile_w, tile_h] + [tile_w//2, tile_h//2]
+                plt.plot(cnt[:, 0], cnt[:, 1], 'w-', linewidth=2)
+            
+            # Tilføj tekstlabel
+            center_r = sum(r for r, _ in region["tiles"]) / len(region["tiles"])
+            center_c = sum(c for _, c in region["tiles"]) / len(region["tiles"])
+            plt.text(center_c * tile_w, center_r * tile_h, 
+                    f"{region['type']}\nTiles: {len(region['tiles'])}\nCrowns: {region['crowns']}\nScore: {region['score']}",
+                    color='white', ha='center', va='center',
+                    bbox=dict(facecolor='black', alpha=0.7, edgecolor='none'))
+        
+        plt.tight_layout()
+        plt.show()
     
     def process_images(self):
-        all_predicted_labels = []
-        all_true_labels = []
+        all_true = []
+        all_pred = []
 
         for path in self.image_paths:
+            print(f"\n📄 Behandler billede: {os.path.basename(path)}")
             img = cv2.imread(path)
             if img is None:
-                print(f"⚠️ Kunne ikke læse billedet: {path}")
+                print("⚠️ Kunne ikke læse billedet.")
                 continue
 
-            tiles = self.split_to_tiles(img)
-            terrain_labels = [[self.classify_tile(tile) for tile in row] for row in tiles]
+            labels, crowns = self.process_image(img)
+            regions = self.find_regions_and_score(labels, crowns)
 
-            true_labels_path = os.path.join(self.ground_truth_folder, os.path.basename(path))
-            if os.path.exists(true_labels_path):
-                true_img = cv2.imread(true_labels_path)
-                true_tiles = self.split_to_tiles(true_img)
-                true_terrain_labels = [[self.classify_tile(tile) for tile in row] for row in true_tiles]
-                
-                for r in range(5):
-                    for c in range(5):
-                        all_true_labels.append(true_terrain_labels[r][c])
-                        all_predicted_labels.append(terrain_labels[r][c])
+            # Hent ground truth-billede
+            gt_path = os.path.join(self.ground_truth_folder, os.path.basename(path))
+            if os.path.exists(gt_path):
+                gt_img = cv2.imread(gt_path)
+                if gt_img is not None:
+                    gt_labels, _ = self.process_image(gt_img)
+                    for r in range(5):
+                        for c in range(5):
+                            all_true.append(gt_labels[r][c])
+                            all_pred.append(labels[r][c])
 
-            print(f"\n📄 Billede: {os.path.basename(path)}")
-            for r in range(5):
-                print(terrain_labels[r])
+            # Visuelt output
+            self.visualize_regions(img, regions, labels)
 
-            connected_areas = self.find_connected_areas(terrain_labels)
-            print("\n🔗 Forbundne områder:")
-            for terrain, size in connected_areas:
-                print(f"{terrain}: {size} tiles")
+            # Tekst-output
+            print("\n🧩 Fundne regioner:")
+            for i, region in enumerate(regions):
+                print(f"Region {i+1}: {region['type']} – {len(region['tiles'])} tiles – {region['crowns']} kroner – Score: {region['score']}")
 
-            annotated = self.annotate_tiles(img, terrain_labels)
-            cv2.imshow("Klassificerede Tiles", annotated)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
+        # Evaluer nøjagtighed
+        if all_true and all_pred:
+            labels_order = ["Field", "Forest", "Lake", "Grassland", "Swamp", "Mine", "Home", "Unknown"]
+            cm = confusion_matrix(all_true, all_pred, labels=labels_order)
+            acc = accuracy_score(all_true, all_pred)
 
-        return all_true_labels, all_predicted_labels
+            print("\n📊 Confusion Matrix:")
+            print(cm)
+            print(f"\n✅ Accuracy: {acc * 100:.2f}%")
 
+            # Visualiser confusion matrix
+            plt.figure(figsize=(10, 8))
+            plt.imshow(cm, cmap='Blues')
+            plt.title('Confusion Matrix')
+            plt.xticks(range(len(labels_order)), labels_order, rotation=45)
+            plt.yticks(range(len(labels_order)), labels_order)
+            plt.colorbar()
+            
+            # Tilføj tekstværdier
+            for i in range(len(labels_order)):
+                for j in range(len(labels_order)):
+                    plt.text(j, i, str(cm[i, j]), ha='center', va='center', color='black')
+            
+            plt.tight_layout()
+            plt.show()
 
-# === Main Execution Block ===
+# === Main Execution ===
 if __name__ == "__main__":
-    print("Starter programmet...")
+    print("▶️ Starter forbedret analyse med regionsscoring og visualisering...\n")
 
-    # Konfiguration
-    INPUT_FOLDER = 'splitted_dataset/train/cropped'  # Mappen med billeder
-    GROUND_TRUTH_FOLDER = 'tiles_crowns.csv'  # Mappen med ground truth billeder
-    
-    # Initialiser TileAnalyzer med input og ground truth folder
-    tile_analyzer = TileAnalyzer(input_folder=INPUT_FOLDER, ground_truth_folder=GROUND_TRUTH_FOLDER)
+    INPUT_FOLDER = 'splitted_dataset/train/cropped'  # Tilpas denne
+    GROUND_TRUTH_FOLDER = 'ground_truth_images'       # Tilpas denne
 
-    # Kør analyse og få de sande labels og forudsigte labels
-    true_labels, predicted_labels = tile_analyzer.process_images()
-
-    # Beregn confusion matrix og nøjagtighed
-    cm = confusion_matrix(true_labels, predicted_labels)
-    accuracy = accuracy_score(true_labels, predicted_labels)
-
-    print(f"\nConfusion Matrix:\n{cm}")
-    print(f"\nSamlet Nøjagtighed: {accuracy * 100:.2f}%")
+    analyzer = EnhancedTileAnalyzer(INPUT_FOLDER, GROUND_TRUTH_FOLDER)
+    analyzer.process_images()
