@@ -3,14 +3,7 @@ import glob
 import cv2 as cv
 import numpy as np
 
-from tile_classifier import TileClassifier
-if __name__ == "__main__":
-    classifier = TileClassifierSVM(
-        input_folder='splitted_dataset/train/cropped',
-        ground_truth_csv='ground_truth_train_split.csv'
-    )
-    classifier.train_svm()
-    classifier.process_images()
+
 
 
 
