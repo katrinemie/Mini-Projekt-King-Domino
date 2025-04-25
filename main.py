@@ -4,10 +4,17 @@ import cv2 as cv
 import numpy as np
 
 from tile_classifier import TileClassifier
-
 if __name__ == "__main__":
-    classifier = TileClassifier(input_folder='splitted_dataset/train/cropped')
+    classifier = TileClassifierSVM(
+        input_folder='splitted_dataset/train/cropped',
+        ground_truth_csv='ground_truth_train_split.csv'
+    )
+    classifier.train_svm()
     classifier.process_images()
+
+
+
+
 
 from crown_detector import CrownDetector  # Importér klassen fra din fil (hvis den fx hedder crown_detector.py)
 

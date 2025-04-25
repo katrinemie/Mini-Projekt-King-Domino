@@ -7,32 +7,25 @@ from sklearn.svm import SVC
 from sklearn.preprocessing import LabelEncoder
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import confusion_matrix, accuracy_score
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # Klasse der håndterer tile klassificering med SVM
 class TileClassifierSVM:
     def __init__(self, input_folder, ground_truth_csv):
-        # Gemmer stien til input-billeder
         self.input_folder = input_folder
-        # Finder alle .jpg filer i mappen
         self.image_paths = glob.glob(os.path.join(input_folder, '*.jpg'))
         if not self.image_paths:
-            # Fejl hvis ingen billeder findes
             raise FileNotFoundError("Ingen billeder fundet i mappen.")
-         # Indlæser korrekt terræn fra CSV
         self.ground_truth = self.load_ground_truth(ground_truth_csv)
-        # Placeholder til SVM modellen
         self.model = None
-        # Initialiserer LabelEncoder til at håndtere labels
         self.label_encoder = LabelEncoder()
         
-    # Indlæser ground truth data
     def load_ground_truth(self, csv_path):
-        # Læser CSV-filen som dataframe
         df = pd.read_csv(csv_path)
         ground_truth = {}
-        # Går igennem billede ID'er
         for img_id in df['image_id'].unique():
-            # Opretter tom 5x5 matrix
             matrix = [['' for _ in range(5)] for _ in range(5)]
             subset = df[df['image_id'] == img_id]
             for _, row in subset.iterrows():
@@ -75,14 +68,13 @@ class TileClassifierSVM:
     def train_svm(self):
         X, y = self.prepare_training_data()
         y_encoded = self.label_encoder.fit_transform(y)
-        # Brug pipeline med scaler + SVM for bedre performance
         self.model = make_pipeline(StandardScaler(), SVC(kernel='rbf', C=10, gamma='scale'))
         self.model.fit(X, y_encoded)
         print(f"SVM trænet på {len(X)} tiles.")
 
     def process_images(self):
-        total_tiles = 0
-        correct_tiles = 0
+        y_true = []
+        y_pred = []
 
         for path in self.image_paths:
             filename = os.path.basename(path)
@@ -93,7 +85,7 @@ class TileClassifierSVM:
             tiles = self.split_to_tiles(img)
             true_labels = self.ground_truth[filename]
 
-            print(f"\n Billede: {filename}")
+            print(f"\nBillede: {filename}")
             for r in range(5):
                 for c in range(5):
                     feature = self.extract_features(tiles[r][c]).reshape(1, -1)
@@ -101,19 +93,33 @@ class TileClassifierSVM:
                     pred = self.label_encoder.inverse_transform([pred_encoded])[0]
                     true = true_labels[r][c]
 
-                    total_tiles += 1
-                    if pred == true:
-                        correct_tiles += 1
-                    else:
-                        print(f"Tile[{r},{c}] - Forventet: {true}, Fundet: {pred}")
+                    if true != '':
+                        y_true.append(true)
+                        y_pred.append(pred)
+                        if pred != true:
+                            print(f"Tile[{r},{c}] - Forventet: {true}, Fundet: {pred}")
 
-        accuracy = (correct_tiles / total_tiles) * 100 if total_tiles else 0
-        print(f"\n Samlet Tile Classification Nøjagtighed med SVM: {accuracy:.2f}%")
+        # Beregn confusion matrix og accuracy
+        cm = confusion_matrix(y_true, y_pred, labels=self.label_encoder.classes_)
+        acc = accuracy_score(y_true, y_pred) * 100
+
+        print(f"\nSamlet Tile Classification Nøjagtighed med SVM: {acc:.2f}%")
+        print("\nConfusion Matrix:")
+        print(cm)
+
+        # Plot confusion matrix
+        plt.figure(figsize=(10,7))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=self.label_encoder.classes_, yticklabels=self.label_encoder.classes_)
+        plt.xlabel('Predicted')
+        plt.ylabel('True')
+        plt.title('Confusion Matrix for Tile Classification')
+        plt.show()
 
 if __name__ == "__main__":
+    print("Indlæser ground truth fra: ground_truth_train_split.csv")
     classifier = TileClassifierSVM(
         input_folder='splitted_dataset/train/cropped',
-        ground_truth_csv='ground_truth_split.csv'
+        ground_truth_csv='ground_truth_train_split.csv'
     )
     classifier.train_svm()
     classifier.process_images()
