@@ -37,7 +37,7 @@ def save_tile(tile, terrain_type, board_name, tile_index, output_dir):
 def extract_tiles(image_path):
     image = cv2.imread(image_path)
     if image is None:
-        print(f"⚠️ Kunne ikke indlæse billede: {image_path}")
+        print(f" Kunne ikke indlæse billede: {image_path}")
         return []
     
     tiles = []
@@ -57,7 +57,7 @@ def process_all_boards(input_folder, output_dir):
     for filename in os.listdir(input_folder):
         if filename.endswith(".png") or filename.endswith(".jpg"):
             image_path = os.path.join(input_folder, filename)
-            print(f"➡️  Behandler: {filename}")
+            print(f"  Behandler: {filename}")
             board_name = os.path.splitext(filename)[0]
             tiles = extract_tiles(image_path)
             for idx, tile in enumerate(tiles):
@@ -69,7 +69,7 @@ def process_all_boards(input_folder, output_dir):
                     cv2.imshow(f"{filename} - tile {idx} ({terrain_type})", tile)
                     cv2.waitKey(500)
                     cv2.destroyAllWindows()
-    print("✅ Færdig med behandling.")
+    print(" Færdig med behandling.")
 
 # === Klar funktion til CSV (bruges senere) ===
 def generate_csv_from_folders(folder_path, output_csv_path):

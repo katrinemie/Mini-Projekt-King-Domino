@@ -16,7 +16,7 @@ class CrownDetector:
 
         image_paths = glob.glob(os.path.join(self.input_folder, '*.jpg'))
         if not image_paths:
-            raise FileNotFoundError("❌ Ingen billeder fundet i input-mappen.")
+            raise FileNotFoundError("Ingen billeder fundet i input-mappen.")
         self.image_paths = image_paths
 
         os.makedirs(self.output_folder, exist_ok=True)
@@ -26,11 +26,11 @@ class CrownDetector:
         for path in self.template_paths:
             template = cv2.imread(path)
             if template is None:
-                print(f"⚠️ Kunne ikke finde template: {path}")
+                print(f"Kunne ikke finde template: {path}")
                 continue
             templates.append(cv2.resize(template, (34, 29)))
         if not templates:
-            raise ValueError("❌ Ingen valide templates blev indlæst!")
+            raise ValueError("Ingen valide templates blev indlæst!")
         return templates
 
     def rotate_image(self, image, angle):
@@ -45,7 +45,11 @@ class CrownDetector:
         rot_mat[1, 2] += bound_h / 2 - center[1]
         return cv2.warpAffine(image, rot_mat, (bound_w, bound_h), borderValue=(255,255,255))
 
-    def process_images(self):
+    # ✅ Opdateret process_images med ground_truth
+    def process_images(self, ground_truth):
+        total_tiles = 0
+        tiles_with_crowns = 0
+
         for img_path in self.image_paths:
             filename = os.path.basename(img_path)
             board_img = cv2.imread(img_path)
@@ -53,7 +57,19 @@ class CrownDetector:
                 print(f"⚠️ Kunne ikke læse {filename}")
                 continue
 
-            self.detect_crowns(board_img, filename)
+            crown_counts = self.detect_crowns(board_img, filename)
+            total_tiles += 25  # 5x5 grid
+            tiles_with_crowns += np.count_nonzero(crown_counts)
+
+            # === Beregn og print accuracy ===
+            if filename in ground_truth:
+                gt_counts = ground_truth[filename]
+                metrics = evaluate_detection(crown_counts, gt_counts)
+                print(f"{filename} - Accuracy: {metrics['Accuracy']:.2f} | TP: {metrics['TP']} | FP: {metrics['FP']} | FN: {metrics['FN']}")
+            else:
+                print(f"{filename} - Ingen ground truth tilgængelig")
+
+        return tiles_with_crowns, total_tiles
 
     def detect_crowns(self, board_img, filename):
         board_height, board_width = board_img.shape[:2]
@@ -97,25 +113,19 @@ class CrownDetector:
                 if total_matches > 0:
                     print(f"{filename} - Tile ({row},{col}) - Fundne kroner efter NMS: {total_matches}")
 
-        print(f"\n{filename} - Samlet kroner matrix:\n{crown_counts}\n")
-        cv2.imwrite(os.path.join(self.output_folder, f"marked_{filename}"), board_img)
-        cv2.imshow(f"Kroner: {filename}", board_img)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        return crown_counts
 
-# === Main ===
-if __name__ == "__main__":
-    detector = CrownDetector(
-        input_folder='splitted_dataset/train/cropped',
-        template_paths=[
-            'opdateret_skærmbillede.png',
-            'opdateret_skærmbillede2.png',
-            'opdateret_skærmbillede3.png',
-            'opdateret_skærmbillede4.png'
-        ],
-        output_folder='outputs_with_crowns',
-        scales=[0.9, 1.0, 1.2],
-        angles=[0, 90, 180, 270],
-        threshold=0.6
-    )
-    detector.process_images()
+# Evaluering funktion uden ændringer
+def evaluate_detection(pred_counts, gt_counts):
+    TP = np.sum(np.minimum(pred_counts, gt_counts))
+    FP = np.sum(np.clip(pred_counts - gt_counts, 0, None))
+    FN = np.sum(np.clip(gt_counts - pred_counts, 0, None))
+
+    accuracy = TP / (TP + FP + FN) if (TP + FP + FN) > 0 else 1.0
+    
+    return {
+        'TP': TP,
+        'FP': FP,
+        'FN': FN,
+        'Accuracy': accuracy,
+    }
