@@ -189,7 +189,7 @@ if __name__ == "__main__":
         classifier = TileClassifier(input_folder=INPUT_FOLDER)
         print(f"Starter klassificering. Resultater gemmes i '{OUTPUT_CSV}'...")
         classifier.process_images(output_csv_file=OUTPUT_CSV, show_images=SHOW_ANNOTATED_IMAGES)
-        print(f"\n✅ Færdig. Klassifikationer er gemt i filen: {OUTPUT_CSV}")
+        print(f"\n Færdig. Klassifikationer er gemt i filen: {OUTPUT_CSV}")
     except FileNotFoundError as e:
         print(f"\nFejl: {e}")
         print("Kontroller venligst at input mappen eksisterer og indeholder .jpg filer.")
