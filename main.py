@@ -12,21 +12,14 @@ if __name__ == "__main__":
 from crown_detector import CrownDetector  # Importér klassen fra din fil (hvis den fx hedder crown_detector.py)
 
 if __name__ == "__main__":
-    detector = CrownDetector(
-        input_folder='splitted_dataset/train/cropped',
-        template_paths=[
-            'opdateret_skærmbillede.png',
-            'opdateret_skærmbillede2.png',
-            'opdateret_skærmbillede3.png',
-            'opdateret_skærmbillede4.png'
-        ],
-        output_folder='outputs_with_crowns',
-        scales=[0.9, 1.0, 1.2],
-        angles=[0, 90, 180, 270],
-        threshold=0.6
-    )
+    detector = CrownDetector( ... )  # dine parametre her
 
-    detector.process_images()
+    # Her modtager du værdierne fra process_images()
+    tiles_with_crowns, total_tiles = detector.process_images()
+
+    accuracy = (tiles_with_crowns / total_tiles) * 100 if total_tiles else 0
+    print(f"\nSamlet Template Matching Nøjagtighed (Tiles med fundne kroner): {accuracy:.2f}%")
+
 from score_calculator import ScoreCalculator
 
 if __name__ == "__main__":
@@ -40,3 +33,4 @@ from neighbour_detection import TileAnalyzer
 if __name__ == "__main__":
     analyzer = TileAnalyzer(input_folder='splitted_dataset/train/cropped')
     analyzer.process_images()
+

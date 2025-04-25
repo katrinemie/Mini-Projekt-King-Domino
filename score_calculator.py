@@ -2,6 +2,7 @@ import cv2 as cv
 import numpy as np
 import os
 import random
+import pandas as pd
 
 class ScoreCalculator:
     def __init__(self, tile_size=100, rows=5, cols=5):
@@ -28,8 +29,6 @@ class ScoreCalculator:
             return "Swamp"
         if 20 < hue < 27 and 60 < saturation < 150 and 30 < value < 80:
             return "Mine"
-        if 18 < hue < 35 and 166 < saturation < 225 and 100 < value < 160:
-            return "Table"
         return "Home"
 
     def count_crowns(self, tile):
@@ -84,12 +83,6 @@ class ScoreCalculator:
         overlay = image.copy()
         area_colors = {area_id: (random.randint(60,255), random.randint(60,255), random.randint(60,255)) for area_id in set(filter(None.__ne__, sum(area_map, [])))}
 
-        print("\n=== Områder fundet ===")
-        for area_id, score in area_scores.items():
-            size = sum(row.count(area_id) for row in area_map)
-            crowns = score // size if size > 0 else 0
-            print(f"A#{area_id}: {size} felter, {crowns} kroner → {score}p")
-
         for r in range(self.rows):
             for c in range(self.cols):
                 x, y = c * self.tile_size, r * self.tile_size
@@ -104,32 +97,4 @@ class ScoreCalculator:
                         texts.append(f"A#{area_id} ({area_scores[area_id]}p)")
                     for i, line in enumerate(texts):
                         cv.putText(overlay, line, (x + 3, y + 15 + i * 15), font, 0.4, (0, 0, 0), 2, cv.LINE_AA)
-                        cv.putText(overlay, line, (x + 3, y + 15 + i * 15), font, 0.4, (255, 255, 255), 1, cv.LINE_AA)
-
-        cv.rectangle(overlay, (0, self.tile_size * self.rows), (self.tile_size * self.cols, self.tile_size * self.rows + 30), (0, 0, 0), -1)
-        cv.putText(overlay, f"Total score: {total_score}", (10, self.tile_size * self.rows + 22), font, 0.6, (255, 255, 255), 1, cv.LINE_AA)
-
-        return overlay
-
-    def calculate_score(self, billede_nr):
-        image_path = f'splitted_dataset/train/cropped/{billede_nr}.jpg'
-
-        if not os.path.isfile(image_path):
-            print("❌ Billedet blev ikke fundet.")
-            return
-
-        image = cv.imread(image_path)
-        tiles = self.get_tiles(image)
-        board = [[(self.get_terrain(tile), self.count_crowns(tile)) for tile in row] for row in tiles]
-
-        area_map, area_scores = self.find_areas(board)
-        total_score = sum(area_scores.values())
-
-        annotated = self.annotate_board(image, board, area_map, area_scores, total_score)
-        output_path = f"ground_truth_{billede_nr}.jpg"
-        cv.imwrite(output_path, annotated)
-
-        print(f"\n✔️ Ground truth-billedet er gemt som: {output_path}")
-        print(f"✔️ Total score: {total_score} point")
-
-
+                        cv.put

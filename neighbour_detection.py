@@ -2,13 +2,28 @@ import cv2
 import numpy as np
 import os
 import glob
+import pandas as pd
 
 class TileAnalyzer:
-    def __init__(self, input_folder):
+    def __init__(self, input_folder, ground_truth_csv):
         self.input_folder = input_folder
         self.image_paths = glob.glob(os.path.join(input_folder, '*.jpg'))
         if not self.image_paths:
-            raise FileNotFoundError("❌ Ingen billeder fundet i mappen.")
+            raise FileNotFoundError(" Ingen billeder fundet i mappen.")
+        self.ground_truth = self.load_ground_truth(ground_truth_csv)
+
+    def load_ground_truth(self, csv_path):
+        df = pd.read_csv(csv_path)
+        ground_truth = {}
+        for img_id in df['image_id'].unique():
+            matrix = [['' for _ in range(5)] for _ in range(5)]
+            subset = df[df['image_id'] == img_id]
+            for _, row in subset.iterrows():
+                col = int(row['x'] // 100)
+                r = int(row['y'] // 100)
+                matrix[r][col] = row['terrain']
+            ground_truth[f"{img_id}.jpg"] = matrix
+        return ground_truth
 
     def classify_tile(self, tile):
         hsv = cv2.cvtColor(tile, cv2.COLOR_BGR2HSV)
@@ -28,6 +43,8 @@ class TileAnalyzer:
             return "Mine"
         if sat < 60 and 60 < val < 200:
             return "Home"
+        if 18 < hue < 35 and 166 < sat < 225 and 100 < val < 160:
+            return "Table"
         return "Unknown"
 
     def split_to_tiles(self, image):
@@ -36,72 +53,40 @@ class TileAnalyzer:
         tile_w = w // 5
         return [[image[y*tile_h:(y+1)*tile_h, x*tile_w:(x+1)*tile_w] for x in range(5)] for y in range(5)]
 
-    def annotate_tiles(self, image, labels):
-        annotated = image.copy()
-        h, w = image.shape[:2]
-        tile_h = h // 5
-        tile_w = w // 5
-
-        for row in range(5):
-            for col in range(5):
-                x = col * tile_w
-                y = row * tile_h
-                label = labels[row][col]
-                cv2.putText(annotated, label, (x + 5, y + 25),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
-                cv2.rectangle(annotated, (x, y), (x + tile_w, y + tile_h), (0, 255, 0), 1)
-        return annotated
-
-    def find_connected_areas(self, labels):
-        visited = [[False]*5 for _ in range(5)]
-        areas = []
-
-        def dfs(r, c, terrain):
-            if r < 0 or r >= 5 or c < 0 or c >= 5:
-                return 0
-            if visited[r][c] or labels[r][c] != terrain:
-                return 0
-            visited[r][c] = True
-            size = 1
-            size += dfs(r+1, c, terrain)
-            size += dfs(r-1, c, terrain)
-            size += dfs(r, c+1, terrain)
-            size += dfs(r, c-1, terrain)
-            return size
-
-        for row in range(5):
-            for col in range(5):
-                if not visited[row][col] and labels[row][col] != "Unknown":
-                    area_size = dfs(row, col, labels[row][col])
-                    if area_size > 1:
-                        areas.append((labels[row][col], area_size))
-        return areas
-
     def process_images(self):
+        total_tiles = 0
+        correct_tiles = 0
+
         for path in self.image_paths:
+            filename = os.path.basename(path)
+            if filename not in self.ground_truth:
+                print(f" Ingen ground truth for {filename}")
+                continue
+
             img = cv2.imread(path)
             if img is None:
-                print(f"⚠️ Kunne ikke læse billedet: {path}")
+                print(f" Kunne ikke læse billedet: {filename}")
                 continue
 
             tiles = self.split_to_tiles(img)
-            terrain_labels = [[self.classify_tile(tile) for tile in row] for row in tiles]
+            predicted_labels = [[self.classify_tile(tile) for tile in row] for row in tiles]
+            true_labels = self.ground_truth[filename]
 
-            print(f"\n📄 Billede: {os.path.basename(path)}")
             for r in range(5):
-                print(terrain_labels[r])
+                for c in range(5):
+                    total_tiles += 1
+                    if predicted_labels[r][c] == true_labels[r][c]:
+                        correct_tiles += 1
+                    else:
+                        print(f" {filename} - Tile ({r},{c}): Forventet {true_labels[r][c]}, Fundet {predicted_labels[r][c]}")
 
-            connected_areas = self.find_connected_areas(terrain_labels)
-            print("\n🔗 Forbundne områder:")
-            for terrain, size in connected_areas:
-                print(f"{terrain}: {size} tiles")
+        accuracy = (correct_tiles / total_tiles) * 100 if total_tiles else 0
+        print(f"\n Samlet Neighbour Detection Nøjagtighed: {accuracy:.2f}%")
 
-            annotated = self.annotate_tiles(img, terrain_labels)
-            cv2.imshow("Klassificerede Tiles", annotated)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
-
-# === Eksempel på brug ===
+# === Main ===
 if __name__ == "__main__":
-    analyzer = TileAnalyzer(input_folder='splitted_dataset/train/cropped')
+    analyzer = TileAnalyzer(
+        input_folder='splitted_dataset/train/cropped',
+        ground_truth_csv='ground_truth_split.csv'
+    )
     analyzer.process_images()
