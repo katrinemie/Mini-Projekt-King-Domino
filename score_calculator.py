@@ -14,11 +14,6 @@ debug_folder = os.path.join(output_folder, "debug_tiles")
 os.makedirs(output_folder, exist_ok=True)
 os.makedirs(debug_folder, exist_ok=True)
 
-# === Indlæs krone-template ===
-crown_template = cv.imread("opdateret_skærmbillede.png")
-if crown_template is None:
-    raise FileNotFoundError("Kunne ikke finde krone-template: opdateret_skærmbillede.png")
-
 # === Funktioner ===
 def get_tiles(image):
     return [[image[y*tile_size:(y+1)*tile_size, x*tile_size:(x+1)*tile_size] for x in range(cols)] for y in range(rows)]
@@ -42,7 +37,7 @@ def get_terrain(tile):
         return "Unknown"
     return "Home"
 
-def non_max_suppression(centers, min_dist=10):
+def non_max_suppression(centers, min_dist=15):
     final_centers = []
     for cx, cy in centers:
         if all(np.hypot(cx - fx, cy - fy) > min_dist for fx, fy in final_centers):
@@ -50,19 +45,16 @@ def non_max_suppression(centers, min_dist=10):
     return final_centers
 
 def count_crowns(tile):
-    gray_tile = cv.cvtColor(tile, cv.COLOR_BGR2GRAY)
-    gray_template = cv.cvtColor(crown_template, cv.COLOR_BGR2GRAY)
-
-    result = cv.matchTemplate(gray_tile, gray_template, cv.TM_CCOEFF_NORMED)
-    threshold = 0.65
-    loc = np.where(result >= threshold)
-
-    centers = []
-    w, h = gray_template.shape[::-1]
-    for pt in zip(*loc[::-1]):
-        center = (pt[0] + w // 2, pt[1] + h // 2)
-        centers.append(center)
-
+    hsv = cv.cvtColor(tile, cv.COLOR_BGR2HSV)
+    lower_yellow = np.array([25, 130, 130])
+    upper_yellow = np.array([32, 255, 255])
+    mask = cv.inRange(hsv, lower_yellow, upper_yellow)
+    kernel = np.ones((3, 3), np.uint8)
+    mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
+    mask = cv.morphologyEx(mask, cv.MORPH_CLOSE, kernel)
+    contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    centers = [tuple(np.mean(cnt.reshape(-1, 2), axis=0).astype(int))
+               for cnt in contours if 100 < cv.contourArea(cnt) < 800]
     final_centers = non_max_suppression(centers)
     return len(final_centers)
 
@@ -148,6 +140,27 @@ def save_score_csv(score_data, csv_path="outputs/scores.csv"):
         writer.writerow(["Image", "Score"])
         writer.writerows(score_data)
 
+def compare_with_ground_truth(predicted_scores, ground_truth_csv):
+    ground_truth = {}
+    with open(ground_truth_csv, mode="r") as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            ground_truth[row["Image"]] = int(row["Score"])
+
+    errors = []
+    for filename, pred_score in predicted_scores:
+        true_score = ground_truth.get(filename, None)
+        if true_score is not None:
+            error = abs(pred_score - true_score)
+            errors.append(error)
+            print(f"{filename}: Predicted = {pred_score}, Ground Truth = {true_score}, Error = {error}")
+
+    if errors:
+        mae = sum(errors) / len(errors)
+        print(f"\n📊 Gennemsnitlig fejl (MAE): {mae:.2f}")
+    else:
+        print("⚠️ Ingen matchende billeder fundet i ground truth CSV.")
+
 # === HOVEDKØRSEL ===
 score_data = []
 
@@ -173,3 +186,6 @@ for filename in sorted(os.listdir(input_folder)):
 save_score_csv(score_data)
 print("\n✔ Alle billeder behandlet og gemt i 'outputs/'")
 print("✔ Scores gemt i: outputs/scores.csv")
+
+# Sammenlign med ground truth
+compare_with_ground_truth(score_data, "ground_truth_scores.csv")
