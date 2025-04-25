@@ -2,6 +2,11 @@ import cv2
 import numpy as np
 import os
 import glob
+from sklearn.metrics import confusion_matrix, accuracy_score
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
 
 class CrownDetector:
     def __init__(self, input_folder, template_paths, output_folder, scales, angles, threshold=0.6, highlight_color=(255, 182, 193)):
@@ -115,17 +120,4 @@ class CrownDetector:
 
         return crown_counts
 
-# Evaluering funktion uden ændringer
-def evaluate_detection(pred_counts, gt_counts):
-    TP = np.sum(np.minimum(pred_counts, gt_counts))
-    FP = np.sum(np.clip(pred_counts - gt_counts, 0, None))
-    FN = np.sum(np.clip(gt_counts - pred_counts, 0, None))
 
-    accuracy = TP / (TP + FP + FN) if (TP + FP + FN) > 0 else 1.0
-    
-    return {
-        'TP': TP,
-        'FP': FP,
-        'FN': FN,
-        'Accuracy': accuracy,
-    }
