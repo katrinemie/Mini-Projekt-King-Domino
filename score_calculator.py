@@ -9,6 +9,7 @@ tile_size = 100
 rows, cols = 5, 5
 
 input_folder = "splitted_dataset/train/cropped"
+ground_truth_csv = "ground_truth_scores.csv"
 output_folder = "outputs"
 debug_folder = os.path.join(output_folder, "debug_tiles")
 os.makedirs(output_folder, exist_ok=True)
@@ -20,34 +21,32 @@ def get_tiles(image):
 
 def get_terrain(tile):
     hsv_tile = cv.cvtColor(tile, cv.COLOR_BGR2HSV)
-    hue, saturation, value = np.median(hsv_tile, axis=(0,1))
-    if 24 < hue < 27.5 and 225 < saturation < 255 and 104 < value < 210:
+    hue, saturation, value = np.median(hsv_tile.reshape(-1, 3), axis=0)
+
+    if 21.5 < hue < 27.5 and 225 < saturation < 255 and 104 < value < 210:
         return "Field"
-    if 25 < hue < 60 and 97 < saturation < 247 and 30 < value < 70:
+    if 25 < hue < 60 and 88 < saturation < 247 and 24 < value < 78:
         return "Forest"
-    if 43.5 < hue < 120 and 223.5 < saturation < 275 and 115 < value < 190:
+    if 90 < hue < 130 and 100 < saturation < 255 and 100 < value < 230:
         return "Lake"
-    if 36 < hue < 45.5 and 150 < saturation < 260 and 100 < value < 180:
+    if 34 < hue < 46 and 150 < saturation < 255 and 90 < value < 180:
         return "Grassland"
-    if 21 < hue < 27 and 66 < saturation < 180 and 75 < value < 135:
+    if 16 < hue < 27 and 66 < saturation < 180 and 75 < value < 140:
         return "Swamp"
-    if 20 < hue < 27 and 60 < saturation < 150 and 30 < value < 80:
+    if 19 < hue < 27 and 39 < saturation < 150 and 29 < value < 80:
         return "Mine"
-    if 18 < hue < 35 and 166 < saturation < 225 and 100 < value < 160:
-        return "Unknown"
-    return "Home"
+    if saturation < 60 and 60 < value < 200:
+        return "Home"
+    return "Unknown"
 
 def count_crowns(tile):
     hsv = cv.cvtColor(tile, cv.COLOR_BGR2HSV)
     lower_yellow = np.array([22, 140, 140])
     upper_yellow = np.array([33, 255, 255])
     mask = cv.inRange(hsv, lower_yellow, upper_yellow)
-
-    # Kontur-baseret filtering
     kernel = np.ones((3, 3), np.uint8)
     mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
     mask = cv.morphologyEx(mask, cv.MORPH_CLOSE, kernel)
-
     contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
     crown_count = 0
     for cnt in contours:
@@ -59,19 +58,7 @@ def count_crowns(tile):
             circularity = 4 * np.pi * (area / (perimeter ** 2))
             if circularity > 0.3:
                 crown_count += 1
-
-    debug_tile = tile.copy()
-    for cnt in contours:
-        if 80 < cv.contourArea(cnt) < 800:
-            x, y, w, h = cv.boundingRect(cnt)
-            cv.rectangle(debug_tile, (x, y), (x+w, y+h), (0, 255, 0), 1)
-    cv.putText(debug_tile, f"Crowns: {crown_count}", (5, 90), cv.FONT_HERSHEY_SIMPLEX, 0.4, (0,255,0), 1)
-    tile_index = count_crowns.tile_id
-    cv.imwrite(os.path.join(debug_folder, f"tile_final_{tile_index}.jpg"), debug_tile)
-    count_crowns.tile_id += 1
-
     return crown_count
-count_crowns.tile_id = 0
 
 def find_areas(board):
     visited = [[False]*cols for _ in range(rows)]
@@ -109,37 +96,14 @@ def find_areas(board):
 
 def annotate_board(image, board, area_map, area_scores, total_score, filename):
     font = cv.FONT_HERSHEY_SIMPLEX
-    scale = 0.4
-    thickness = 1
     overlay = image.copy()
-    area_colors = {area_id: (random.randint(60, 255), random.randint(60, 255), random.randint(60, 255))
-                   for area_id in set(filter(lambda x: x is not None, sum(area_map, [])))}
-
     for r in range(rows):
         for c in range(cols):
             x, y = c * tile_size, r * tile_size
             terrain, crowns = board[r][c]
-            area_id = area_map[r][c]
-
-            if area_id is not None:
-                color = area_colors[area_id]
-                cv.rectangle(overlay, (x, y), (x + tile_size, y + tile_size), color, 2)
-
-            if terrain not in ("Home", "Unknown"):
-                text_lines = [f"{terrain}", f"{crowns} crown(s)"]
-                if area_id is not None:
-                    text_lines.append(f"A#{area_id} ({area_scores[area_id]}p)")
-
-                for i, line in enumerate(text_lines):
-                    cv.putText(overlay, line, (x + 3, y + 15 + i * 15), font, scale,
-                               (0, 0, 0), thickness + 1, cv.LINE_AA)
-                    cv.putText(overlay, line, (x + 3, y + 15 + i * 15), font, scale,
-                               (255, 255, 255), thickness, cv.LINE_AA)
-
-    cv.rectangle(overlay, (0, tile_size * rows), (tile_size * cols, tile_size * rows + 30), (0, 0, 0), -1)
+            cv.putText(overlay, f"{terrain[:2]}-{crowns}", (x + 10, y + 50), font, 0.5, (0, 0, 255), 1, cv.LINE_AA)
     cv.putText(overlay, f"Total score: {total_score}", (10, tile_size * rows + 22), font,
                0.6, (255, 255, 255), 1, cv.LINE_AA)
-
     return overlay
 
 def save_score_csv(score_data, csv_path="outputs/scores.csv"):
@@ -153,11 +117,14 @@ def compare_with_ground_truth(predicted_scores, ground_truth_csv):
     with open(ground_truth_csv, mode="r") as file:
         reader = csv.DictReader(file)
         for row in reader:
-            ground_truth[row["Image"]] = int(row["Score"])
+            image_name = row.get("Image") or row.get("image") or row.get("image_id")
+            score_val = row.get("Score") or row.get("score")
+            if image_name and score_val:
+                ground_truth[image_name] = int(score_val)
 
     errors = []
     for filename, pred_score in predicted_scores:
-        true_score = ground_truth.get(filename, None)
+        true_score = ground_truth.get(filename)
         if true_score is not None:
             error = abs(pred_score - true_score)
             errors.append(error)
@@ -195,5 +162,4 @@ save_score_csv(score_data)
 print("\n✔ Alle billeder behandlet og gemt i 'outputs/'")
 print("✔ Scores gemt i: outputs/scores.csv")
 
-# Sammenlign med ground truth
-compare_with_ground_truth(score_data, "ground_truth_scores.csv")
+compare_with_ground_truth(score_data, ground_truth_csv)
