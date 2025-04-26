@@ -1,110 +1,88 @@
-import cv2
-import numpy as np
 import os
-import csv
-from tile_classifier import TileClassifierSVM
+from crown_detecter import CrownDetector, ground_truth_from_csv
 from neighbour_detection import NeighbourDetector
-from crown_detecter import CrownDetector
+from score_calculator import compare_with_ground_truth, save_score_csv
+from tile_classifier import TileClassifierSVM
+import cv2
 
-class ScoreCalculator:
-    def calculate_score(board, crowns):
-        """Beregn score baseret på board (terrain) og crowns (kroner)."""
-        visited = [[False]*len(board[0]) for _ in range(len(board))]
-        total_score = 0
+# === Mapper og filer ===
+CROPPED_FOLDER = 'splitted_dataset/test/cropped'
+GROUND_TRUTH_CSV = 'ground_truth.csv'
+GROUND_TRUTH_SCORES_CSV = 'ground_truth_scores.csv'
+SCORE_OUTPUT_FOLDER = 'outputs'
+os.makedirs(SCORE_OUTPUT_FOLDER, exist_ok=True)
 
-        def dfs(r, c, terrain):
-            if (r < 0 or r >= len(board) or c < 0 or c >= len(board[0]) or 
-                visited[r][c] or board[r][c] != terrain):
-                return 0, 0
-            visited[r][c] = True
-            count = 1
-            current_crowns = crowns[r][c]
-            for dr, dc in [(-1,0), (1,0), (0,-1), (0,1)]:
-                cnt, crn = dfs(r+dr, c+dc, terrain)
-                count += cnt
-                current_crowns += crn
-            return count, current_crowns
+def run_crown_detector():
+    print("\n=== Crown Detection ===")
+    ground_truth = ground_truth_from_csv(GROUND_TRUTH_CSV)
+    detector = CrownDetector(
+        input_folder=CROPPED_FOLDER,
+        template_paths=[
+            'board_templates/Skærmbillede 2025-04-23 kl. 13.08.35.png',
+            'board_templates/Skærmbillede 2025-04-23 kl. 13.08.47.png',
+            'board_templates/Skærmbillede 2025-04-23 kl. 13.08.56.png',
+            'board_templates/Skærmbillede 2025-04-23 kl. 13.09.05.png',
+            'board_templates/Skærmbillede 2025-04-23 kl. 13.09.13.png',
+            'board_templates/Skærmbillede 2025-04-23 kl. 13.09.25.png',
+            'board_templates/Skærmbillede 2025-04-23 kl. 13.09.44.png',
+            'board_templates/Skærmbillede 2025-04-23 kl. 13.09.51.png',
+            'board_templates/Skærmbillede 2025-04-23 kl. 13.10.19.png',
+            'board_templates/Skærmbillede 2025-04-23 kl. 13.11.34.png',
+            'board_templates/Skærmbillede 2025-04-23 kl. 13.12.43.png',
+            'board_templates/Skærmbillede 2025-04-23 kl. 13.13.03.png',
+            'board_templates/Skærmbillede 2025-04-23 kl. 13.13.14.png',
+            'board_templates/Skærmbillede 2025-04-23 kl. 13.13.32.png'
+        ],
+        output_folder='output',
+        scales=[0.8, 1.0, 1.2],
+        angles=[0, 90, 180, 270],
+        threshold=0.6
+    )
+    detector.process_images(ground_truth)
 
-        for r in range(len(board)):
-            for c in range(len(board[0])):
-                terrain = board[r][c]
-                if not visited[r][c] and terrain != "Home":
-                    size, region_crowns = dfs(r, c, terrain)
-                    if region_crowns > 0:
-                        total_score += size * region_crowns
-        return total_score
+def run_neighbour_detection():
+    print("\n=== Neighbour Detection ===")
+    detector = NeighbourDetector(CROPPED_FOLDER)
+    detector.process_images()
 
-def test_score_calculator():
-    print("\n=== 🧪 TESTING SCORE CALCULATOR ===\n")
-    
-    # Test Case 1: Simpel 3x3 board med én region
-    board1 = [
-        ["Forest", "Forest", "Grass"],
-        ["Forest", "Grass", "Grass"],
-        ["Grass", "Grass", "Grass"]
-    ]
-    crowns1 = [
-        [1, 0, 0],
-        [0, 0, 0],
-        [0, 0, 0]
-    ]
-    expected1 = 3 * 1  # 3 tiles * 1 crown
-    result1 = ScoreCalculator.calculate_score(board1, crowns1)
-    print(f"Test 1: {'✅' if result1 == expected1 else '❌'} Expected {expected1}, Got {result1}")
+def run_score_calculator():
+    print("\n=== Score Calculation ===")
+    from score_calculator import get_tiles, get_terrain, count_crowns, find_areas, annotate_board
 
-    # Test Case 2: Flere regioner med kroner
-    board2 = [
-        ["Forest", "Water", "Grass"],
-        ["Forest", "Grass", "Grass"],
-        ["Grass", "Grass", "Water"]
-    ]
-    crowns2 = [
-        [1, 0, 0],
-        [0, 2, 0],
-        [0, 0, 1]
-    ]
-    expected2 = (2*1) + (4*2) + (1*1)  # 2 + 8 + 1 = 11
-    result2 = ScoreCalculator.calculate_score(board2, crowns2)
-    print(f"Test 2: {'✅' if result2 == expected2 else '❌'} Expected {expected2}, Got {result2}")
+    score_data = []
 
-    # Test Case 3: Ingen kroner = 0 point
-    board3 = [["Forest" for _ in range(3)] for _ in range(3)]
-    crowns3 = [[0 for _ in range(3)] for _ in range(3)]
-    expected3 = 0
-    result3 = ScoreCalculator.calculate_score(board3, crowns3)
-    print(f"Test 3: {'✅' if result3 == expected3 else '❌'} Expected {expected3}, Got {result3}")
+    for filename in sorted(os.listdir(CROPPED_FOLDER)):
+        if filename.endswith(".jpg"):
+            image_path = os.path.join(CROPPED_FOLDER, filename)
+            image = cv2.imread(image_path)
+            if image is None:
+                print(f"❌ Kunne ikke indlæse: {filename}")
+                continue
 
+            tiles = get_tiles(image)
+            board = [[(get_terrain(tile), count_crowns(tile)) for tile in row] for row in tiles]
+            area_map, area_scores = find_areas(board)
+            total_score = sum(area_scores.values())
+            annotated = annotate_board(image, board, area_map, area_scores, total_score, filename)
+
+            output_img_path = os.path.join(SCORE_OUTPUT_FOLDER, f"score_calculator_output_{filename}")
+            cv2.imwrite(output_img_path, annotated)
+            score_data.append((filename, total_score))
+            print(f"✔ Gemte: {output_img_path} | Score: {total_score}")
+
+    save_score_csv(score_data)
+    compare_with_ground_truth(score_data, GROUND_TRUTH_SCORES_CSV)
+
+def run_tile_classifier():
+    print("\n=== Tile Classifier (SVM) ===")
+    classifier = TileClassifierSVM(CROPPED_FOLDER, GROUND_TRUTH_CSV)
+    classifier.train_svm()
+    if classifier.model:
+        classifier.evaluate()
+
+# === Main Call ===
 if __name__ == "__main__":
-    try:
-        # === 1. Kør enhedstests ===
-        test_score_calculator()
-
-        # === 2. Valider mod ground truth fra CSV ===
-        print("\n=== 🔍 VALIDERING MOD GROUND TRUTH ===")
-        ground_truth = {}
-        with open('ground_truth_scores.csv', mode='r') as file:
-            reader = csv.DictReader(file)
-            for row in reader:
-                ground_truth[row['Image']] = int(row['Score'])
-
-        input_folder = 'splitted_dataset/test/cropped'
-        score_data = []
-        for filename in os.listdir(input_folder):
-            if filename.endswith(".jpg"):
-                # Simuler board og crowns fra dit system
-                board = [["Forest" for _ in range(5)] for _ in range(5)]  # TODO: Erstat med din egen logik
-                crowns = [[0 for _ in range(5)] for _ in range(5)]       # TODO: Erstat med CrownDetector-output
-                pred_score = ScoreCalculator.calculate_score(board, crowns)
-                true_score = ground_truth.get(filename, None)
-                
-                if true_score is not None:
-                    error = abs(pred_score - true_score)
-                    score_data.append((filename, error))
-                    print(f"📊 {filename}: Predicted={pred_score}, Ground Truth={true_score}, Error={error}")
-
-        if score_data:
-            mae = sum(error for _, error in score_data) / len(score_data)
-            print(f"\n🔍 Gennemsnitlig fejl (MAE): {mae:.2f}")
-
-    except Exception as e:
-        print(f"❌ Kritisk fejl: {e}")
+    run_crown_detector()
+    run_neighbour_detection()
+    run_score_calculator()
+    run_tile_classifier()

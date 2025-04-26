@@ -158,7 +158,7 @@ if __name__ == "__main__":
             'board_templates/Skærmbillede 2025-04-23 kl. 13.09.13.png',
             'board_templates/Skærmbillede 2025-04-23 kl. 13.09.25.png',
             'board_templates/Skærmbillede 2025-04-23 kl. 13.09.44.png',
-           ' board_templates/Skærmbillede 2025-04-23 kl. 13.09.51.png',
+            'board_templates/Skærmbillede 2025-04-23 kl. 13.09.51.png',
             'board_templates/Skærmbillede 2025-04-23 kl. 13.10.19.png',
             'board_templates/Skærmbillede 2025-04-23 kl. 13.11.34.png',
             'board_templates/Skærmbillede 2025-04-23 kl. 13.12.43.png',
@@ -174,7 +174,7 @@ if __name__ == "__main__":
     )
 
     # Indlæs ground truth fra CSV
-    ground_truth = ground_truth_from_csv('ground_truth_train_split.csv')
+    ground_truth = ground_truth_from_csv('ground_truth.csv')
 
     # Kør detektor
     detector.process_images(ground_truth)

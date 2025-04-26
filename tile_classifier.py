@@ -165,7 +165,7 @@ class TileClassifierSVM:
 
 if __name__ == "__main__":
     TRAIN_IMAGE_FOLDER = 'splitted_dataset/train/cropped'
-    TRAIN_GROUND_TRUTH_CSV = 'ground_truth_train_split.csv'
+    TRAIN_GROUND_TRUTH_CSV = 'ground_truth.csv'
     try:
         classifier = TileClassifierSVM(TRAIN_IMAGE_FOLDER, TRAIN_GROUND_TRUTH_CSV)
         classifier.train_svm()
