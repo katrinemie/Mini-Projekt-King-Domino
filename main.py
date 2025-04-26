@@ -52,6 +52,7 @@ def evaluate_crown_detection(true_crowns, predicted_crowns):
 def run_crown_detection_accuracy_test(image_path, crown_detector, label_file):
     true_crowns = load_true_crown_labels_from_csv(label_file)
     predicted_crowns = {}
+    detected_crowns = {}
 
     for image_file in os.listdir(image_path):
         if not image_file.endswith(".jpg"):
@@ -63,13 +64,23 @@ def run_crown_detection_accuracy_test(image_path, crown_detector, label_file):
         if img is None:
             print(f"Image {image_file} not found or unreadable.")
             continue
-
-        # Kør kronedetektion på billedet
         hsv_tile = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        crown_count = len(crown_detector.detect_crowns(hsv_tile))
+        detected_crowns = crown_detector.detect_crowns(hsv_tile, image_file)
 
-        predicted_crowns[image_id] = crown_count
+        if detected_crowns:  # Hvis der er detekterede kroner
+            predicted_crowns[image_id] = [(x, y, count) for (x, y, count) in detected_crowns]
+        else:
+            print(f"No crowns detected in image {image_file}")
 
+    print(f"True crowns: {true_crowns}")
+    print(f"Predicted crowns: {predicted_crowns}")
+
+        
+
+    predicted_crowns[image_id] = [(x, y, count) for (x, y, count) in detected_crowns]
+    if not true_crowns or not predicted_crowns:
+        print("❌ No valid data for crown detection evaluation.")
+        return
     precision, recall, f1, accuracy_score = evaluate_crown_detection(true_crowns, predicted_crowns)
 
     print(f"\nCrown Detection Results:")
@@ -80,21 +91,23 @@ def run_crown_detection_accuracy_test(image_path, crown_detector, label_file):
 
 # Hovedfunktion til at køre alle tests og visualiseringer
 def main():
-    image_path = r"Cropped_and_corrected_boards"  # Stien til dine billeder
+    image_path = r"King Domino dataset/Cropped and perspective corrected boards"  # Stien til dine billeder
     label_file = r"ground_truth.csv"  # Stien til din ground truth CSV-fil
 
     # Initialiser kronedetektoren med dine skabelonbilleder
     crown_templates = [
-        r"Reference_tiles\reference_crown_small1_rot90.JPG",
-        r"Reference_tiles\reference_crown_small1_rot180.JPG",
-        r"Reference_tiles\reference_crown_small1_rot270.JPG",
-        r"Reference_tiles\reference_crown_small1.jpg"
+        r"crown_image/opdateret_skærmbillede.png",
+        r"crown_image/opdateret_skærmbillede2.png",
+        r"crown_image/opdateret_skærmbillede3.png",
+        r"crown_image/opdateret_skærmbillede4.png"
     ]
-    crown_detector = CrownDetector(crown_templates)
+    crown_detector = CrownDetector(image_path, crown_templates,'output',[0.8, 1.0, 1.2],
+        [0, 90, 180, 270],
+        0.6)
 
     # Initialiser din classifier (her bruger vi din TileClassifierSVM)
-    classifier = TileClassifierSVM()
-    classifier.run_pipeline(image_path)  # Kør din pipeline, hvis nødvendigt
+    classifier = TileClassifierSVM('splitted_dataset/train/cropped','ground_truth.csv')
+    #classifier.run_pipeline(image_path)  # Kør din pipeline, hvis nødvendigt
 
     # Kør test for kronedetektionens nøjagtighed
     run_crown_detection_accuracy_test(image_path, crown_detector, label_file)
