@@ -149,6 +149,7 @@ class CrownDetector:
 
 if __name__ == "__main__":
     detector = CrownDetector(
+<<<<<<< HEAD
     input_folder='splitted_dataset/train/cropped',
     template_paths=[
         'board_templates/Skærmbillede 2025-04-23 kl. 13.08.35.png',
@@ -171,6 +172,24 @@ if __name__ == "__main__":
     angles=[0, 90, 180, 270],
     threshold=0.6
 )
+=======
+        input_folder='splitted_dataset/train/cropped',
+        template_paths=[
+            'board_templates\krone_image1.png',
+            'board_templates\krone_image2.png',
+            'board_templates\krone_image3.png',
+            'board_templates\krone_image4.png',
+            'board_templates\krone_image5.png',
+            'board_templates\krone_image6.png',
+            'board_templates\krone_image7.png',
+            'board_templates\krone_image8.png',
+            'board_templates\krone_image9.png',
+            'board_templates\krone_image10.png',
+            'board_templates\krone_image11.png',
+            'board_templates\krone_image12.png',
+            'board_templates\krone_image13.png',
+            'board_templates\krone_image14.png'
+>>>>>>> 1e4ff61b8d2684431c01620755e9ed3f11354eb5
 
 
     # Indlæs ground truth fra CSV
