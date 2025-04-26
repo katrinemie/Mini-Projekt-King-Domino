@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import csv
 
-# === Din HSV-baserede terrænklassifikation ===
+
 def classify_tile_by_hsv(tile):
     hsv = cv2.cvtColor(tile, cv2.COLOR_BGR2HSV)
     avg_hsv = cv2.mean(hsv)[:3]
@@ -26,14 +26,14 @@ def classify_tile_by_hsv(tile):
     
     return "Empty"
 
-# === Gem tile i korrekt mappe ===
+
 def save_tile(tile, terrain_type, board_name, tile_index, output_dir):
     terrain_path = os.path.join(output_dir, terrain_type)
     os.makedirs(terrain_path, exist_ok=True)
     filename = f"{board_name}_tile{tile_index}.jpg"
     cv2.imwrite(os.path.join(terrain_path, filename), tile)
 
-# === Del billede op i 5x5 tiles ===
+
 def extract_tiles(image_path):
     image = cv2.imread(image_path)
     if image is None:
@@ -51,7 +51,7 @@ def extract_tiles(image_path):
             tiles.append(tile)
     return tiles
 
-# === Behandl alle bræt-billeder i en mappe ===
+
 def process_all_boards(input_folder, output_dir):
     print("🔎 Starter behandling af billeder i:", input_folder)
     for filename in os.listdir(input_folder):
@@ -64,14 +64,14 @@ def process_all_boards(input_folder, output_dir):
                 terrain_type = classify_tile_by_hsv(tile)
                 save_tile(tile, terrain_type, board_name, idx, output_dir)
 
-                # Vis de første 2 tiles for visuel test
+                
                 if idx < 2:
                     cv2.imshow(f"{filename} - tile {idx} ({terrain_type})", tile)
                     cv2.waitKey(500)
                     cv2.destroyAllWindows()
     print(" Færdig med behandling.")
 
-# === Klar funktion til CSV (bruges senere) ===
+
 def generate_csv_from_folders(folder_path, output_csv_path):
     rows = []
     for terrain_type in os.listdir(folder_path):
@@ -88,11 +88,9 @@ def generate_csv_from_folders(folder_path, output_csv_path):
         writer.writerow(["Filename", "TerrainType", "Path"])
         writer.writerows(rows)
 
-# === Kør programmet ===
+
 input_folder = r"C:\Users\katri\Documents\2 semester\Design og udvikling af ai systemer\Mini projekt king domino\King Domino dataset\Cropped and perspective corrected boards"
 output_folder = r"C:\Users\katri\Desktop\Kingkat"
 
 process_all_boards(input_folder, output_folder)
 
-# Når du er klar, kan du aktivere CSV:
-# generate_csv_from_folders(output_folder, r"C:\Users\katri\Documents\2 semester\Design og udvikling af ai systemer\Mini projekt king domino\Opdelt_terræn\ground_truth.csv")

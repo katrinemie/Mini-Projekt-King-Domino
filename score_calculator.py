@@ -153,7 +153,7 @@ class BoardScorer:
 
         if errors:
             mae = sum(errors) / len(errors)
-            print(f"\n📊 Gennemsnitlig fejl (MAE): {mae:.2f}")
+            print(f"\nGennemsnitlig fejl (MAE): {mae:.2f}")
         else:
             print("\u26a0\ufe0f Ingen matchende billeder fundet i ground truth CSV.")
 
@@ -163,7 +163,7 @@ class BoardScorer:
                 image_path = os.path.join(self.input_folder, filename)
                 image = cv.imread(image_path)
                 if image is None:
-                    print(f"❌ Kunne ikke indlæse: {filename}")
+                    print(f"Kunne ikke indlæse: {filename}")
                     continue
 
                 tiles = self.get_tiles(image)
@@ -175,15 +175,15 @@ class BoardScorer:
                 output_img_path = os.path.join(self.output_folder, f"score_calculator_output_{filename}")
                 cv.imwrite(output_img_path, annotated)
                 self.score_data.append((filename, total_score))
-                print(f"✔ Gemte: {output_img_path} | Score: {total_score}")
+                print(f"Gemte: {output_img_path} | Score: {total_score}")
 
         self.save_score_csv()
-        print("\n✔ Alle billeder behandlet og gemt i 'outputs/'")
-        print("✔ Scores gemt i: outputs/scores.csv")
+        print("\nbilleder behandlet og gemt i 'outputs/'")
+        print("Scores gemt i: outputs/scores.csv")
         self.compare_with_ground_truth()
 
 if __name__ == "__main__":
-    # Her kalder du klassen og kører run-metoden
+    
     scorer = BoardScorer(
         input_folder="splitted_dataset/train/cropped",
         ground_truth_csv="ground_truth_scores.csv",

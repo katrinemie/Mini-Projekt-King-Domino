@@ -2,7 +2,7 @@ import os
 import cv2
 import csv
 
-#Læs eksisterende CSV, hvis den findes
+
 def load_existing_annotations(csv_path):
     existing = {}
     if os.path.exists(csv_path):
@@ -12,7 +12,7 @@ def load_existing_annotations(csv_path):
                 existing[row["Filename"]] = row
     return existing
 
-#Gem CSV til disk 
+ 
 def save_csv(rows, output_csv_path):
     with open(output_csv_path, "w", newline='') as csvfile:
         writer = csv.writer(csvfile)
@@ -43,16 +43,16 @@ def annotate_tiles_with_crowns(folder_path, output_csv_path):
             full_path = os.path.join(terrain_dir, filename)
             image = cv2.imread(full_path)
             if image is None:
-                print(f" Kunne ikke åbne {full_path}")
+                print(f"øvvv Kunne ikke åbne {full_path}")
                 continue
 
-            # Vis billedet
+            #vis billedet
             cv2.imshow(f"{terrain_type} - {filename}", image)
             while True:
                 key = cv2.waitKey(0)
 
                 if key in [27]:  # ESC
-                    print(" Afslutter...")
+                    print(" Afslutter")
                     cv2.destroyAllWindows()
                     save_csv(annotated_rows, output_csv_path)
                     return

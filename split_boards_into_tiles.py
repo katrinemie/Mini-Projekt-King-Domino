@@ -26,14 +26,14 @@ def split_board_images(input_folder, output_folder):
                 y = i * tile_h
                 tile = image[y:y+tile_h, x:x+tile_w]
 
-                # Brug image ID + x/y som filnavn
+                
                 tile_filename = f"tile_{board_id}_{x}_{y}.jpg"
                 tile_path = os.path.join(output_folder, tile_filename)
                 cv2.imwrite(tile_path, tile)
 
         print(f"Split: {filename} → 25 tiles gemt som tile_{board_id}_x_y.jpg")
 
-# === Brug det her ===
+
 input_folder = r"C:\Users\katri\Documents\2 semester\Design og udvikling af ai systemer\Mini projekt king domino\Mini-Projekt-King-Domino\King Domino dataset\Cropped and perspective corrected boards"
 output_folder = r"C:\Users\katri\Desktop\Kingkat\All_Tiles"
 

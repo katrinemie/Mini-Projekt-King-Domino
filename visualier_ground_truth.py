@@ -29,16 +29,16 @@ def visualize_ground_truth(csv_path, tile_folder, output_folder=None, show_image
             label_position = (5, image.shape[0] - 5)
             font = cv2.FONT_HERSHEY_SIMPLEX
 
-            # Semi-transparent baggrund
+           
             overlay = image.copy()
             cv2.rectangle(overlay, (0, image.shape[0] - 20), (image.shape[1], image.shape[0]), (255, 255, 255), -1)
             alpha = 0.5
             image = cv2.addWeighted(overlay, alpha, image, 1 - alpha, 0)
 
-            # Tekst
+            
             cv2.putText(image, label, label_position, font, 0.5, (0, 0, 0), 1)
 
-            # Vis eller gem
+            
             if show_images:
                 cv2.imshow(f"{filename}", image)
                 key = cv2.waitKey(500)
@@ -50,9 +50,9 @@ def visualize_ground_truth(csv_path, tile_folder, output_folder=None, show_image
                 output_path = os.path.join(output_folder, filename)
                 cv2.imwrite(output_path, image)
 
-    print("Færdig med visualisering.")
+    print("Færdig.")
 
-# === Brug det her ===
+
 csv_path = r"C:\Users\katri\Documents\2 semester\Design og udvikling af ai systemer\Mini projekt king domino\Mini-Projekt-King-Domino\ground_truth_split.csv"
 tile_folder = r"C:\Users\katri\Desktop\Kingkat\All_Tiles"
 output_folder = r"C:\Users\katri\Desktop\Kingkat\Visualiseret"

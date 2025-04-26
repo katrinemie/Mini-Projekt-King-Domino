@@ -13,9 +13,9 @@ class NeighbourDetection:
         self.image_paths = glob.glob(os.path.join(input_folder, '*.jpg'))
         
         if not self.image_paths:
-            raise FileNotFoundError("Ingen billeder fundet i input-mappen.")
+            raise FileNotFoundError("øv. Ingen billeder fundet i inputmappen.")
         
-        # Terræntype farver og klasser
+        #terræntype farver og klasser
         self.terrain_colors = {
             "Field": (255, 215, 0),
             "Forest": (34, 139, 34),
@@ -27,7 +27,7 @@ class NeighbourDetection:
             "Unknown": (220, 220, 220)
         }
         self.classes = list(self.terrain_colors.keys())
-        self.directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # Op, ned, venstre, højre
+        self.directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]  #Op, ned, venstre, højre
 
     def classify_tile(self, tile):
         """Klassificer en tile baseret på farve"""
@@ -80,12 +80,12 @@ class NeighbourDetection:
         plt.title('Originalbillede')
         plt.axis('off')
         
-        # Naboanalyse visualisering
+        #Naboanalyse visualisering
         plt.subplot(1, 2, 2)
         h, w = image.shape[:2]
         tile_h, tile_w = h // 5, w // 5
         
-        # Tegn tiles med farver
+        
         for r in range(5):
             for c in range(5):
                 color = np.array(self.terrain_colors[labels[r][c]])/255
@@ -93,19 +93,19 @@ class NeighbourDetection:
                                     facecolor=color, edgecolor='white', alpha=0.7)
                 plt.gca().add_patch(rect)
                 
-                # Vis antal naboer
+                #antal naboer
                 plt.text(c*tile_w + tile_w/2, r*tile_h + tile_h/2,
                         str(neighbour_counts[r, c]),
                         ha='center', va='center', fontsize=10, color='black',
                         bbox=dict(facecolor='white', alpha=0.7, pad=1))
         
-        # Tegn linjer mellem forbundne naboer
+        #Tegner linjer mellem forbundne naboer
         for (r1, c1), (r2, c2) in connections:
             plt.plot([c1*tile_w + tile_w/2, c2*tile_w + tile_w/2],
                     [r1*tile_h + tile_h/2, r2*tile_h + tile_h/2],
                     'white', linewidth=1.5, alpha=0.7)
         
-        # Opret legend i den ønskede rækkefølge
+        #Opret legend i den ønskede rækkefølge
         desired_order = ["Field", "Forest", "Lake", "Grassland", "Swamp", "Mine", "Home", "Unknown"]
         legend_elements = [Patch(facecolor=np.array(self.terrain_colors[name])/255, label=name) 
                          for name in desired_order]
@@ -122,23 +122,23 @@ class NeighbourDetection:
         for path in self.image_paths:
             img = cv2.imread(path)
             if img is None:
-                print(f"Kunne ikke indlæse billede: {path}")
+                print(f"øvøv Kunne ikke indlæse billede: {path}")
                 continue
 
-            # Klassificer tiles
+            #Klassificer tiles
             tiles = self.split_to_tiles(img)
             labels = [[self.classify_tile(tile) for tile in row] for row in tiles]
             
-            # Find naboer
+            #Find naboer
             connections, neighbour_counts = self.find_neighbours(labels)
             
-            # Vis resultater
+            #Vis resultater
             print(f"\nAnalyserer {os.path.basename(path)}:")
             self.visualize_results(img, labels, connections, neighbour_counts)
 
 
 if __name__ == "__main__":
-    INPUT_FOLDER = 'splitted_dataset/train/cropped'  # Tilpas til din mappestruktur
+    INPUT_FOLDER = 'splitted_dataset/train/cropped'  
     try:
         detector = NeighbourDetection(INPUT_FOLDER)
         detector.process_images()
