@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 import pandas as pd
 
+
 class NeighbourDetector:
     def __init__(self, input_folder):
         self.input_folder = input_folder
@@ -135,6 +136,7 @@ class NeighbourDetector:
             print(f"\nAnalyserer {os.path.basename(path)}:")
             self.visualize_results(img, labels, connections, neighbour_counts)
 
+
 if __name__ == "__main__":
     INPUT_FOLDER = 'splitted_dataset/train/cropped'  # Tilpas til din mappestruktur
     try:
@@ -142,3 +144,5 @@ if __name__ == "__main__":
         detector.process_images()
     except Exception as e:
         print(f"Fejl: {e}")
+
+    

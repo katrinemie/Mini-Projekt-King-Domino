@@ -1,11 +1,11 @@
-import cv2
-import numpy as np
 import os
+import cv2
 import glob
-from sklearn.metrics import confusion_matrix, accuracy_score
+import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import pandas as pd
+from sklearn.metrics import confusion_matrix, accuracy_score
 
 def ground_truth_from_csv(csv_path):
     df = pd.read_csv(csv_path)
@@ -45,7 +45,7 @@ class CrownDetector:
         for path in self.template_paths:
             template = cv2.imread(path)
             if template is None:
-                print(f"Kunne ikke finde template: {path}")
+                print(f"⚠️ Kunne ikke finde template: {path}")
                 continue
             templates.append(cv2.resize(template, (34, 29)))
         if not templates:
@@ -62,7 +62,7 @@ class CrownDetector:
         bound_h = int(h * abs_cos + w * abs_sin)
         rot_mat[0, 2] += bound_w / 2 - center[0]
         rot_mat[1, 2] += bound_h / 2 - center[1]
-        return cv2.warpAffine(image, rot_mat, (bound_w, bound_h), borderValue=(255,255,255))
+        return cv2.warpAffine(image, rot_mat, (bound_w, bound_h), borderValue=(255, 255, 255))
 
     def detect_crowns(self, board_img, filename):
         board_height, board_width = board_img.shape[:2]
@@ -132,19 +132,21 @@ class CrownDetector:
             cm = confusion_matrix(y_true, y_pred, labels=[1, 0])
             acc = accuracy_score(y_true, y_pred) * 100
 
-            print(f"\nSamlet Crown Detection Accuracy: {acc:.2f}%")
+            print(f"\n✅ Samlet Crown Detection Accuracy: {acc:.2f}%")
             print("Confusion Matrix:\n", cm)
 
-            plt.figure(figsize=(6,5))
-            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Crown', 'No Crown'], yticklabels=['Crown', 'No Crown'])
+            plt.figure(figsize=(6, 5))
+            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+                        xticklabels=['Crown', 'No Crown'], 
+                        yticklabels=['Crown', 'No Crown'])
             plt.xlabel('Predicted')
             plt.ylabel('True')
             plt.title('Confusion Matrix for Crown Detection')
+            plt.tight_layout()
             plt.show()
         else:
-            print("Ingen data til beregning af confusion matrix.")
-
-
+            print("❌ Ingen data til beregning af confusion matrix.")
+            
 if __name__ == "__main__":
     detector = CrownDetector(
         input_folder='splitted_dataset/train/cropped',
@@ -157,7 +159,8 @@ if __name__ == "__main__":
         angles=[0, 90, 180, 270],
         threshold=0.6
     )
-# Indlæs ground truth fra CSV
+
+    # Indlæs ground truth fra CSV
     ground_truth = ground_truth_from_csv('ground_truth_train_split.csv')
 
     # Kør detektor

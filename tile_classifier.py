@@ -10,117 +10,165 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import confusion_matrix, accuracy_score
 import matplotlib.pyplot as plt
 import seaborn as sns
+from typing import List, Dict, Tuple, Optional, Any
+import traceback
 
-# Klasse der håndterer tile klassificering med SVM
 class TileClassifierSVM:
-    def __init__(self, input_folder, ground_truth_csv):
+    def __init__(self, input_folder: str, ground_truth_csv: str, grid_size: int = 5):
         self.input_folder = input_folder
+        self.ground_truth_csv = ground_truth_csv
+        self.grid_size = grid_size
         self.image_paths = glob.glob(os.path.join(input_folder, '*.jpg'))
         if not self.image_paths:
-            raise FileNotFoundError("Ingen billeder fundet i mappen.")
-        self.ground_truth = self.load_ground_truth(ground_truth_csv)
-        self.model = None
+            raise FileNotFoundError(f"FEJL: Ingen .jpg i {input_folder}")
+        try:
+            self.ground_truth = self.load_ground_truth(ground_truth_csv)
+        except (FileNotFoundError, IOError, ValueError) as e:
+            print(f"\nFEJL: Ground truth problem: {e}")
+            raise
+        except Exception as e:
+            print(f"\nUVENTET FEJL (init): {e}\n{traceback.format_exc()}")
+            raise
+        self.model: Optional[Any] = None
         self.label_encoder = LabelEncoder()
-        
-    def load_ground_truth(self, csv_path):
-        df = pd.read_csv(csv_path)
-        ground_truth = {}
+
+    def load_ground_truth(self, csv_path: str) -> Dict[str, List[List[str]]]:
+        if not os.path.exists(csv_path):
+             raise FileNotFoundError(f"CSV ikke fundet: {csv_path}")
+        try:
+            df = pd.read_csv(csv_path)
+        except Exception as e:
+            raise IOError(f"Kan ikke læse CSV: {csv_path}. {e}")
+        if not {'image_id', 'x', 'y', 'terrain'}.issubset(df.columns):
+            raise ValueError(f"CSV mangler kolonner")
+
+        ground_truth: Dict[str, List[List[str]]] = {}
+        if not self.image_paths:
+             raise ValueError("Ingen billeder!")
+
+        h, w = cv2.imread(self.image_paths[0]).shape[:2]
+        tile_h, tile_w = h // self.grid_size, w // self.grid_size
+        if tile_w == 0 or tile_h == 0:
+            raise ValueError(f"Nul tile størrelse!")
         for img_id in df['image_id'].unique():
-            matrix = [['' for _ in range(5)] for _ in range(5)]
-            subset = df[df['image_id'] == img_id]
-            for _, row in subset.iterrows():
-                col = int(row['x'] // 100)
-                r = int(row['y'] // 100)
-                matrix[r][col] = row['terrain']
-            ground_truth[f"{img_id}.jpg"] = matrix
+            filename = f"{str(img_id)}.jpg"
+            matrix = [['' for _ in range(self.grid_size)] for _ in range(self.grid_size)]
+            for _, row in df[df['image_id'] == img_id].iterrows():
+                try:
+                    col, row_idx = int(row['x'] // tile_w), int(row['y'] // tile_h)
+                    if 0 <= row_idx < self.grid_size and 0 <= col < self.grid_size:
+                        matrix[row_idx][col] = str(row['terrain']) if pd.notna(row['terrain']) else ''
+                except (ValueError, TypeError, KeyError):
+                     pass
+            ground_truth[filename] = matrix
         return ground_truth
 
-    def extract_features(self, tile):
-        hsv = cv2.cvtColor(tile, cv2.COLOR_BGR2HSV)
-        median_hsv = np.median(hsv.reshape(-1, 3), axis=0)
-        return median_hsv
+    def extract_features(self, tile: np.ndarray) -> Optional[np.ndarray]:
+        if tile is None or tile.size == 0: return None
+        try:
+            hsv = cv2.cvtColor(tile, cv2.COLOR_BGR2HSV)
+            median_hsv = np.median(hsv.reshape(-1, 3), axis=0)
+            return median_hsv if not np.any(np.isnan(median_hsv)) and not np.any(np.isinf(median_hsv)) else None
+        except cv2.error: return None
+        except Exception: return None
 
-    def split_to_tiles(self, image):
+    def split_to_tiles(self, image: np.ndarray) -> List[List[Optional[np.ndarray]]]:
+        if image is None: return [[None] * self.grid_size for _ in range(self.grid_size)]
         h, w = image.shape[:2]
-        tile_h = h // 5
-        tile_w = w // 5
-        return [[image[y*tile_h:(y+1)*tile_h, x*tile_w:(x+1)*tile_w] for x in range(5)] for y in range(5)]
+        tile_h, tile_w = h // self.grid_size, w // self.grid_size
+        return [[image[r*tile_h:(r+1)*tile_h, c*tile_w:(c+1)*tile_w] if image[r*tile_h:(r+1)*tile_h, c*tile_w:(c+1)*tile_w].size > 0 else None
+                 for c in range(self.grid_size)] for r in range(self.grid_size)]
 
-    def prepare_training_data(self):
-        X = []
-        y = []
-        for path in self.image_paths:
-            filename = os.path.basename(path)
-            if filename not in self.ground_truth:
-                continue
+    def prepare_training_data(self) -> Tuple[np.ndarray, np.ndarray]:
+        X, y = [], []
+        for path in [p for p in self.image_paths if os.path.basename(p) in self.ground_truth]:
             img = cv2.imread(path)
+            if img is None: continue
             tiles = self.split_to_tiles(img)
-            true_labels = self.ground_truth[filename]
-            for r in range(5):
-                for c in range(5):
-                    feature = self.extract_features(tiles[r][c])
-                    label = true_labels[r][c]
-                    if label != '':
-                        X.append(feature)
-                        y.append(label)
+            true_labels = self.ground_truth[os.path.basename(path)]
+            for r in range(self.grid_size):
+                for c in range(self.grid_size):
+                    tile, label = tiles[r][c], true_labels[r][c]
+                    if isinstance(label, str) and label and tile is not None:
+                        feature = self.extract_features(tile)
+                        if feature is not None: X.append(feature), y.append(label)
         return np.array(X), np.array(y)
 
-    def train_svm(self):
+    def train_svm(self, C: float = 10.0, kernel: str = 'rbf', gamma: str = 'scale') -> None:
         X, y = self.prepare_training_data()
-        y_encoded = self.label_encoder.fit_transform(y)
-        self.model = make_pipeline(StandardScaler(), SVC(kernel='rbf', C=10, gamma='scale'))
-        self.model.fit(X, y_encoded)
-        print(f"SVM trænet på {len(X)} tiles.")
+        if X.shape[0] < 2:
+            print("FEJL: For lidt træningsdata")
+            self.model = None
+            return
+        try:
+            y_encoded = self.label_encoder.fit_transform(y)
+            self.model = make_pipeline(StandardScaler(),SVC(kernel=kernel, C=C, gamma=gamma, probability=True, class_weight='balanced', random_state=42)).fit(X, y_encoded)
+            print("SVM trænet.")
+        except Exception as e:
+            print(f"FEJL (SVM træning): {e}\n{traceback.format_exc()}")
+            self.model = None
 
-    def process_images(self):
-        y_true = []
-        y_pred = []
+    def predict_tile(self, tile: np.ndarray) -> Optional[str]:
+        if self.model is None or tile is None: return None
+        feature = self.extract_features(tile)
+        if feature is None: return None
+        try:
+            return self.label_encoder.inverse_transform([self.model.predict(feature.reshape(1, -1))[0]])[0]
+        except Exception: return None
 
-        for path in self.image_paths:
-            filename = os.path.basename(path)
-            if filename not in self.ground_truth:
-                continue
+    def evaluate(self, eval_folder: Optional[str] = None, eval_csv: Optional[str] = None) -> None:
+        if self.model is None:
+            print("FEJL: Modellen ikke trænet.")
+            return
 
+        y_true, y_pred = [], []
+        target_folder = eval_folder or self.input_folder
+        target_csv = eval_csv or self.ground_truth_csv
+        eval_ground_truth = self.ground_truth if target_folder == self.input_folder and target_csv == self.ground_truth_csv else self.load_ground_truth(target_csv) #Genbrug GT data
+        if eval_ground_truth is None: return
+
+        for path in [p for p in glob.glob(os.path.join(target_folder, '*.jpg')) if os.path.basename(p) in eval_ground_truth]:
             img = cv2.imread(path)
+            if img is None: continue
             tiles = self.split_to_tiles(img)
-            true_labels = self.ground_truth[filename]
+            true_labels = eval_ground_truth[os.path.basename(path)]
+            for r in range(self.grid_size):
+                for c in range(self.grid_size):
+                    tile, label = tiles[r][c], true_labels[r][c]
+                    if isinstance(label, str) and label and tile is not None:
+                        pred = self.predict_tile(tile)
+                        if pred: y_true.append(label), y_pred.append(pred)
 
-            print(f"\nBillede: {filename}")
-            for r in range(5):
-                for c in range(5):
-                    feature = self.extract_features(tiles[r][c]).reshape(1, -1)
-                    pred_encoded = self.model.predict(feature)[0]
-                    pred = self.label_encoder.inverse_transform([pred_encoded])[0]
-                    true = true_labels[r][c]
+        if not y_true:
+            print("\nIngen evalueringsdata.")
+            return
 
-                    if true != '':
-                        y_true.append(true)
-                        y_pred.append(pred)
-                        if pred != true:
-                            print(f"Tile[{r},{c}] - Forventet: {true}, Fundet: {pred}")
+        cm_labels = list(self.label_encoder.classes_)
+        try:
+            acc = accuracy_score(y_true, y_pred) * 100
+            cm = confusion_matrix(y_true, y_pred, labels=cm_labels)
+            print(f"\nNøjagtighed: {acc:.2f}%")
+            print("\nConfusion Matrix:\n", pd.DataFrame(cm, index=cm_labels, columns=cm_labels))
 
-        # Beregn confusion matrix og accuracy
-        cm = confusion_matrix(y_true, y_pred, labels=self.label_encoder.classes_)
-        acc = accuracy_score(y_true, y_pred) * 100
+            plt.figure(figsize=(10, 7))
+            sns.heatmap(pd.DataFrame(cm, index=cm_labels, columns=cm_labels), annot=True, fmt='d', cmap='Blues', cbar=True)
+            plt.xlabel('Predicted')
+            plt.ylabel('True')
+            plt.title(f'Confusion Matrix (Accuracy: {acc:.2f}%)')
+            plt.xticks(rotation=45, ha='right')
+            plt.yticks(rotation=0)
+            plt.tight_layout()
+            plt.show()
 
-        print(f"\nSamlet Tile Classification Nøjagtighed med SVM: {acc:.2f}%")
-        print("\nConfusion Matrix:")
-        print(cm)
-
-        # Plot confusion matrix
-        plt.figure(figsize=(10,7))
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=self.label_encoder.classes_, yticklabels=self.label_encoder.classes_)
-        plt.xlabel('Predicted')
-        plt.ylabel('True')
-        plt.title('Confusion Matrix for Tile Classification')
-        plt.show()
+        except Exception as e:
+            print(f"FEJL (evalueringsresultater): {e}\n{traceback.format_exc()}")
 
 if __name__ == "__main__":
-    print("Indlæser ground truth fra: ground_truth_train_split.csv")
-    classifier = TileClassifierSVM(
-        input_folder='splitted_dataset/train/cropped',
-        ground_truth_csv='ground_truth_train_split.csv'
-    )
-    classifier.train_svm()
-    classifier.process_images()
-
+    TRAIN_IMAGE_FOLDER = 'splitted_dataset/train/cropped'
+    TRAIN_GROUND_TRUTH_CSV = 'ground_truth_train_split.csv'
+    try:
+        classifier = TileClassifierSVM(TRAIN_IMAGE_FOLDER, TRAIN_GROUND_TRUTH_CSV)
+        classifier.train_svm()
+        if classifier.model: classifier.evaluate()
+    except Exception as e:
+        print(f"UVENTET FEJL: {e}\n{traceback.format_exc()}")
