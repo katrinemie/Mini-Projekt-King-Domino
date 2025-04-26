@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 from crown_detecter import CrownDetector
 from tile_classifier import TileClassifierSVM
@@ -16,16 +15,16 @@ def load_true_crown_labels_from_csv(label_file):
     df = pd.read_csv(label_file)
     crowns_data = df[['image_id', 'x', 'y', 'crowns']]
     labels = {}
-    
+
     for _, row in crowns_data.iterrows():
         image_id = row['image_id']
         x, y, crowns = row['x'], row['y'], row['crowns']
-        
+
         if image_id not in labels:
             labels[image_id] = []
-        
+
         labels[image_id].append((x, y, crowns))
-    
+
     return labels
 
 # Funktion til at evaluere kronedetektion
@@ -42,13 +41,46 @@ def evaluate_crown_detection(true_crowns, predicted_crowns):
     recall = recall_score(all_true, all_predicted, average='macro', zero_division=0)
     f1 = f1_score(all_true, all_predicted, average='macro', zero_division=0)
     accuracy = accuracy_score(all_true, all_predicted)
-    return precision, recall, f1, accuracy
+    return precision, recall, f1, accuracy, all_true, all_predicted
+
+# Funktion til at plotte confusion matrix i ønsket stil
+def plot_confusion_matrix(cm, labels):
+    fig, ax = plt.subplots(figsize=(6, 6))
+    cmap = plt.cm.Blues
+
+    cax = ax.matshow(cm, cmap=cmap)
+
+    ax.set_xticks(np.arange(len(labels)))
+    ax.set_yticks(np.arange(len(labels)))
+    ax.set_xticklabels(labels, fontsize=12)
+    ax.set_yticklabels(labels, fontsize=12)
+    ax.xaxis.set_ticks_position('bottom')
+
+    ax.set_xlabel('Predicted', fontsize=14)
+    ax.set_ylabel('True', fontsize=14)
+    ax.set_title('Confusion Matrix for Crown Detection', fontsize=16, pad=20)
+
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            ax.text(j, i, format(cm[i, j], 'd'),
+                    ha="center", va="center",
+                    color="black", fontsize=16)
+
+    ax.set_xticks(np.arange(-0.5, len(labels), 1), minor=True)
+    ax.set_yticks(np.arange(-0.5, len(labels), 1), minor=True)
+    ax.grid(which='minor', color='black', linestyle='-', linewidth=2)
+    ax.tick_params(which="minor", size=0)
+
+    fig.colorbar(cax).remove()
+
+    plt.tight_layout()
+    plt.show()
 
 # Funktion til at køre kronedetektion-test
 def run_crown_detection_accuracy_test(image_path, crown_detector, label_file):
     true_crowns = load_true_crown_labels_from_csv(label_file)
     predicted_crowns = {}
-    
+
     for image_file in os.listdir(image_path):
         if not image_file.endswith(".jpg"):
             continue
@@ -58,7 +90,7 @@ def run_crown_detection_accuracy_test(image_path, crown_detector, label_file):
             print(f"Image {image_file} not found or unreadable.")
             continue
         detected_crowns = crown_detector.detect_crowns(img, image_file)
-        
+
         if detected_crowns is not None and np.any(detected_crowns):
             predicted_crowns[image_id] = []
             for row in range(5):
@@ -67,25 +99,27 @@ def run_crown_detection_accuracy_test(image_path, crown_detector, label_file):
                     predicted_crowns[image_id].append((col, row, count))
         else:
             print(f"No crowns detected in image {image_file}")
-    
+
     if not true_crowns or not predicted_crowns:
         print("No valid data for crown detection evaluation.")
         return
-    
-    precision, recall, f1, acc = evaluate_crown_detection(true_crowns, predicted_crowns)
+
+    precision, recall, f1, acc, all_true, all_predicted = evaluate_crown_detection(true_crowns, predicted_crowns)
+
     print("\nCrown Detection Resultater:")
     print(f"Accuracy: {acc:.2f}")
     print(f"Precision: {precision:.2f}")
     print(f"Recall:    {recall:.2f}")
     print(f"F1 Score:  {f1:.2f}")
 
+    cm = confusion_matrix(all_true, all_predicted, labels=[1, 0])
+    plot_confusion_matrix(cm, labels=["Crown", "No Crown"])
+
 # Hovedfunktion
 def main():
-    # Brug nu TEST-mappen i stedet for TRAIN
     image_path = r"splitted_dataset/test/cropped"
     label_file = r"ground_truth.csv"
-    
-    # Crown detector setup
+
     crown_templates = [
         r"crown_image/single_krone1.png",
         r"crown_image/single_krone2.png",
@@ -103,16 +137,14 @@ def main():
 
     print("\nStarter Crown Detection Test...")
     run_crown_detection_accuracy_test(image_path, crown_detector, label_file)
-    
+
     print("\nStarter Tile Classifier Test...")
-    # Tile Classifier
     classifier = TileClassifierSVM('splitted_dataset/test/cropped', 'ground_truth.csv')
     classifier.train_svm()
     if classifier.model:
         classifier.evaluate()
 
     print("\nStarter Score Calculator Test...")
-    # Score Calculator
     scorer = BoardScorer(
         input_folder="splitted_dataset/test/cropped",
         ground_truth_csv="ground_truth_scores.csv",
@@ -121,7 +153,6 @@ def main():
     scorer.run()
 
     print("\nStarter Neighbour Detection Test...")
-    # Neighbour Detection
     neighbour_detector = NeighbourDetection('splitted_dataset/test/cropped')
     neighbour_detector.process_images()
 
