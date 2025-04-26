@@ -149,29 +149,29 @@ class CrownDetector:
 
 if __name__ == "__main__":
     detector = CrownDetector(
-        input_folder='splitted_dataset/train/cropped',
-        template_paths=[
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.08.35.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.08.47.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.08.56.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.09.05.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.09.13.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.09.25.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.09.44.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.09.51.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.10.19.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.11.34.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.12.43.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.13.03.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.13.14.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.13.32.png'
+    input_folder='splitted_dataset/train/cropped',
+    template_paths=[
+        'board_templates/Skærmbillede 2025-04-23 kl. 13.08.35.png',
+        'board_templates/Skærmbillede 2025-04-23 kl. 13.08.47.png',
+        'board_templates/Skærmbillede 2025-04-23 kl. 13.08.56.png',
+        'board_templates/Skærmbillede 2025-04-23 kl. 13.09.05.png',
+        'board_templates/Skærmbillede 2025-04-23 kl. 13.09.13.png',
+        'board_templates/Skærmbillede 2025-04-23 kl. 13.09.25.png',
+        'board_templates/Skærmbillede 2025-04-23 kl. 13.09.44.png',
+        'board_templates/Skærmbillede 2025-04-23 kl. 13.09.51.png',
+        'board_templates/Skærmbillede 2025-04-23 kl. 13.10.19.png',
+        'board_templates/Skærmbillede 2025-04-23 kl. 13.11.34.png',
+        'board_templates/Skærmbillede 2025-04-23 kl. 13.12.43.png',
+        'board_templates/Skærmbillede 2025-04-23 kl. 13.13.03.png',
+        'board_templates/Skærmbillede 2025-04-23 kl. 13.13.14.png',
+        'board_templates/Skærmbillede 2025-04-23 kl. 13.13.32.png'
+    ],
+    output_folder='output',
+    scales=[0.8, 1.0, 1.2],
+    angles=[0, 90, 180, 270],
+    threshold=0.6
+)
 
-        ],
-        output_folder='output',
-        scales=[0.8, 1.0, 1.2],
-        angles=[0, 90, 180, 270],
-        threshold=0.6
-    )
 
     # Indlæs ground truth fra CSV
     ground_truth = ground_truth_from_csv('ground_truth.csv')

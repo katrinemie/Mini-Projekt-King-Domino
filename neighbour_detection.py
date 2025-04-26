@@ -4,10 +4,10 @@ import os
 import glob
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
-import pandas as pd
 
 
-class NeighbourDetector:
+
+class NeighbourDetection:
     def __init__(self, input_folder):
         self.input_folder = input_folder
         self.image_paths = glob.glob(os.path.join(input_folder, '*.jpg'))
@@ -140,7 +140,7 @@ class NeighbourDetector:
 if __name__ == "__main__":
     INPUT_FOLDER = 'splitted_dataset/train/cropped'  # Tilpas til din mappestruktur
     try:
-        detector = NeighbourDetector(INPUT_FOLDER)
+        detector = NeighbourDetection(INPUT_FOLDER)
         detector.process_images()
     except Exception as e:
         print(f"Fejl: {e}")

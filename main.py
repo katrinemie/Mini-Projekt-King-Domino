@@ -1,88 +1,103 @@
-import os
-from crown_detecter import CrownDetector, ground_truth_from_csv
-from neighbour_detection import NeighbourDetector
-from score_calculator import compare_with_ground_truth, save_score_csv
-from tile_classifier import TileClassifierSVM
 import cv2
+import os
+import pandas as pd
+import numpy as np
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
-# === Mapper og filer ===
-CROPPED_FOLDER = 'splitted_dataset/test/cropped'
-GROUND_TRUTH_CSV = 'ground_truth.csv'
-GROUND_TRUTH_SCORES_CSV = 'ground_truth_scores.csv'
-SCORE_OUTPUT_FOLDER = 'outputs'
-os.makedirs(SCORE_OUTPUT_FOLDER, exist_ok=True)
 
-def run_crown_detector():
-    print("\n=== Crown Detection ===")
-    ground_truth = ground_truth_from_csv(GROUND_TRUTH_CSV)
-    detector = CrownDetector(
-        input_folder=CROPPED_FOLDER,
-        template_paths=[
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.08.35.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.08.47.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.08.56.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.09.05.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.09.13.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.09.25.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.09.44.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.09.51.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.10.19.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.11.34.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.12.43.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.13.03.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.13.14.png',
-            'board_templates/Skærmbillede 2025-04-23 kl. 13.13.32.png'
-        ],
-        output_folder='output',
-        scales=[0.8, 1.0, 1.2],
-        angles=[0, 90, 180, 270],
-        threshold=0.6
-    )
-    detector.process_images(ground_truth)
+from crown_detecter import CrownDetector
+from sklearn.metrics import confusion_matrix, accuracy_score
+from tile_classifier import TileClassifierSVM
+from score_calculator import BoardScorer
+from neighbour_detection import NeighbourDetection
 
-def run_neighbour_detection():
-    print("\n=== Neighbour Detection ===")
-    detector = NeighbourDetector(CROPPED_FOLDER)
-    detector.process_images()
+# Funktion til at indlæse de sande mærkater for kroner fra en CSV-fil
+def load_true_crown_labels_from_csv(label_file):
+    df = pd.read_csv(label_file)
+    crowns_data = df[['image_id', 'x', 'y', 'crowns']]
+    labels = {}
+    
+    for _, row in crowns_data.iterrows():
+        image_id = row['image_id']
+        x, y, crowns = row['x'], row['y'], row['crowns']
+        
+        if image_id not in labels:
+            labels[image_id] = []
+        
+        labels[image_id].append((x, y, crowns))
+    
+    return labels
 
-def run_score_calculator():
-    print("\n=== Score Calculation ===")
-    from score_calculator import get_tiles, get_terrain, count_crowns, find_areas, annotate_board
+# Test funktion til at evaluere kronedetektionens præcision, recall, F1 score og nøjagtighed
+def evaluate_crown_detection(true_crowns, predicted_crowns):
+    all_true = []
+    all_predicted = []
 
-    score_data = []
+    for image_id in true_crowns:
+        true_data = true_crowns[image_id]
+        predicted_data = predicted_crowns.get(image_id, [])
 
-    for filename in sorted(os.listdir(CROPPED_FOLDER)):
-        if filename.endswith(".jpg"):
-            image_path = os.path.join(CROPPED_FOLDER, filename)
-            image = cv2.imread(image_path)
-            if image is None:
-                print(f"❌ Kunne ikke indlæse: {filename}")
-                continue
+        for (x, y, true_crowns_count), (_, _, predicted_crowns_count) in zip(true_data, predicted_data):
+            all_true.append(true_crowns_count)
+            all_predicted.append(predicted_crowns_count)
 
-            tiles = get_tiles(image)
-            board = [[(get_terrain(tile), count_crowns(tile)) for tile in row] for row in tiles]
-            area_map, area_scores = find_areas(board)
-            total_score = sum(area_scores.values())
-            annotated = annotate_board(image, board, area_map, area_scores, total_score, filename)
+    precision = precision_score(all_true, all_predicted, average='macro', zero_division=0)
+    recall = recall_score(all_true, all_predicted, average='macro', zero_division=0)
+    f1 = f1_score(all_true, all_predicted, average='macro', zero_division=0)
+    accuracy = accuracy_score(all_true, all_predicted)
 
-            output_img_path = os.path.join(SCORE_OUTPUT_FOLDER, f"score_calculator_output_{filename}")
-            cv2.imwrite(output_img_path, annotated)
-            score_data.append((filename, total_score))
-            print(f"✔ Gemte: {output_img_path} | Score: {total_score}")
+    return precision, recall, f1, accuracy
 
-    save_score_csv(score_data)
-    compare_with_ground_truth(score_data, GROUND_TRUTH_SCORES_CSV)
+# Test for at køre kronedetektion og scoreevaluering på billederne
+def run_crown_detection_accuracy_test(image_path, crown_detector, label_file):
+    true_crowns = load_true_crown_labels_from_csv(label_file)
+    predicted_crowns = {}
 
-def run_tile_classifier():
-    print("\n=== Tile Classifier (SVM) ===")
-    classifier = TileClassifierSVM(CROPPED_FOLDER, GROUND_TRUTH_CSV)
-    classifier.train_svm()
-    if classifier.model:
-        classifier.evaluate()
+    for image_file in os.listdir(image_path):
+        if not image_file.endswith(".jpg"):
+            continue
 
-# === Main Call ===
+        image_id = int(os.path.splitext(image_file)[0])
+        img = cv2.imread(os.path.join(image_path, image_file))
+
+        if img is None:
+            print(f"Image {image_file} not found or unreadable.")
+            continue
+
+        # Kør kronedetektion på billedet
+        hsv_tile = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        crown_count = len(crown_detector.detect_crowns(hsv_tile))
+
+        predicted_crowns[image_id] = crown_count
+
+    precision, recall, f1, accuracy_score = evaluate_crown_detection(true_crowns, predicted_crowns)
+
+    print(f"\nCrown Detection Results:")
+    print(f"Accuracy: {accuracy_score:.2f}")
+    print(f"Precision: {precision:.2f}")
+    print(f"Recall:    {recall:.2f}")
+    print(f"F1 Score:  {f1:.2f}")
+
+# Hovedfunktion til at køre alle tests og visualiseringer
+def main():
+    image_path = r"Cropped_and_corrected_boards"  # Stien til dine billeder
+    label_file = r"ground_truth.csv"  # Stien til din ground truth CSV-fil
+
+    # Initialiser kronedetektoren med dine skabelonbilleder
+    crown_templates = [
+        r"Reference_tiles\reference_crown_small1_rot90.JPG",
+        r"Reference_tiles\reference_crown_small1_rot180.JPG",
+        r"Reference_tiles\reference_crown_small1_rot270.JPG",
+        r"Reference_tiles\reference_crown_small1.jpg"
+    ]
+    crown_detector = CrownDetector(crown_templates)
+
+    # Initialiser din classifier (her bruger vi din TileClassifierSVM)
+    classifier = TileClassifierSVM()
+    classifier.run_pipeline(image_path)  # Kør din pipeline, hvis nødvendigt
+
+    # Kør test for kronedetektionens nøjagtighed
+    run_crown_detection_accuracy_test(image_path, crown_detector, label_file)
+
 if __name__ == "__main__":
-    run_crown_detector()
-    run_neighbour_detection()
-    run_score_calculator()
-    run_tile_classifier()
+    main()
