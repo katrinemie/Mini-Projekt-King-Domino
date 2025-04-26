@@ -178,4 +178,3 @@ if __name__ == "__main__":
     # Kør detektor
     detector.process_images(ground_truth)
 
-CrownDetector()
