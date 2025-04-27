@@ -43,7 +43,7 @@ def annotate_tiles_with_crowns(folder_path, output_csv_path):
             full_path = os.path.join(terrain_dir, filename)
             image = cv2.imread(full_path)
             if image is None:
-                print(f"øvvv Kunne ikke åbne {full_path}")
+                print(f"Kunne ikke åbne {full_path}")
                 continue
 
             #vis billedet
@@ -62,7 +62,7 @@ def annotate_tiles_with_crowns(folder_path, output_csv_path):
                     annotated_rows.append([filename, terrain_type, crowns])
                     break
                 else:
-                    print("Ugyldigt input. Brug kun tasterne 0, 1, 2 eller 3.")
+                    print(" Brug kun tasterne 0, 1, 2 eller 3.")
 
             cv2.destroyAllWindows()
 

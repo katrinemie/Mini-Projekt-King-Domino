@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import confusion_matrix, accuracy_score
 
+#Funktion til at indlæse ground truth data fra en CSV-fil
 def ground_truth_from_csv(csv_path):
     df = pd.read_csv(csv_path)
     ground_truth = {}
@@ -23,6 +24,7 @@ def ground_truth_from_csv(csv_path):
     return ground_truth
 
 class CrownDetector:
+    # Initialiserer CrownDetector med input-mappe, template-stier, output-mappe, skalaer og vinkler
     def __init__(self, input_folder, template_paths, output_folder, scales, angles, threshold=0.6, highlight_color=(255, 182, 193)):
         self.input_folder = input_folder
         self.template_paths = template_paths
@@ -40,18 +42,20 @@ class CrownDetector:
 
         os.makedirs(self.output_folder, exist_ok=True)
 
+    #Funktion til at indlæse billedskabeloner fra de angivne stier, ændre deres størrelse
     def load_templates(self):
         templates = []
         for path in self.template_paths:
             template = cv2.imread(path)
             if template is None:
-                print(f"⚠️ Kunne ikke finde template: {path}")
+                print(f"Kunne ikke finde template: {path}")
                 continue
             templates.append(cv2.resize(template, (34, 29)))
         if not templates:
-            raise ValueError("Ingen valide templates blev indlæst!")
+            raise ValueError("Ingen valide templates blev indlæst")
         return templates
-
+    
+    # Roterer billedet med den angivne vinkel
     def rotate_image(self, image, angle):
         h, w = image.shape[:2]
         center = (w // 2, h // 2)
@@ -63,7 +67,8 @@ class CrownDetector:
         rot_mat[0, 2] += bound_w / 2 - center[0]
         rot_mat[1, 2] += bound_h / 2 - center[1]
         return cv2.warpAffine(image, rot_mat, (bound_w, bound_h), borderValue=(255, 255, 255))
-
+    
+    # Detekterer kroner i et givet billede ved hjælp af template matching
     def detect_crowns(self, board_img, filename):
         board_height, board_width = board_img.shape[:2]
         tile_height = board_height // 5
@@ -102,7 +107,8 @@ class CrownDetector:
                     print(f"{filename} - Tile ({row},{col}) - Fundne kroner efter NMS: {total_matches}")
 
         return crown_counts
-
+    
+    #Behandler billeder, detekterer kroner, sammenligner med ground truth, og beregner præstationsmålinger som nøjagtighed og confusion matrix.
     def process_images(self, ground_truth):
         y_true = []
         y_pred = []
@@ -111,7 +117,7 @@ class CrownDetector:
             filename = os.path.basename(img_path)
             board_img = cv2.imread(img_path)
             if board_img is None:
-                print(f"⚠️ Kunne ikke læse {filename}")
+                print(f"Kunne ikke indlæse {filename}")
                 continue
 
             crown_counts = self.detect_crowns(board_img, filename)
@@ -132,7 +138,7 @@ class CrownDetector:
             cm = confusion_matrix(y_true, y_pred, labels=[1, 0])
             acc = accuracy_score(y_true, y_pred) * 100
 
-            print(f"\n✅ Samlet Crown Detection Accuracy: {acc:.2f}%")
+            print(f"\nSamlet Crown Detection Accuracy: {acc:.2f}%")
             print("Confusion Matrix:\n", cm)
 
             plt.figure(figsize=(6, 5))
@@ -145,7 +151,7 @@ class CrownDetector:
             plt.tight_layout()
             plt.show()
         else:
-            print("❌ Ingen data til beregning af confusion matrix.")
+            print("Ingen data til beregning af confusion matrix.")
 
 if __name__ == "__main__":
     detector = CrownDetector(

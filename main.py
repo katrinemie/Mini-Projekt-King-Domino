@@ -10,7 +10,7 @@ from tile_classifier import TileClassifierSVM
 from score_calculator import BoardScorer
 from neighbour_detection import NeighbourDetection
 
-# Function to load true crown labels from CSV
+# Funktion til at hente de sande etiketter fra en CSV-fil
 def load_true_crown_labels_from_csv(label_file):
     try:
         df = pd.read_csv(label_file)
@@ -31,7 +31,7 @@ def load_true_crown_labels_from_csv(label_file):
         print(f"Error loading labels from CSV: {e}")
         return {}
 
-# Function to evaluate crown detection
+# Funktion til at evaluere crown detection
 def evaluate_crown_detection(true_crowns, predicted_crowns):
     all_true = []
     all_predicted = []
@@ -48,7 +48,7 @@ def evaluate_crown_detection(true_crowns, predicted_crowns):
     accuracy = accuracy_score(all_true, all_predicted)
     return precision, recall, f1, accuracy, all_true, all_predicted
 
-# Function to plot confusion matrix
+# Funktion til at plotte confusionmatrix
 def plot_confusion_matrix(cm, labels):
     fig, ax = plt.subplots(figsize=(6, 6))
     cmap = plt.cm.Blues
@@ -81,7 +81,7 @@ def plot_confusion_matrix(cm, labels):
     plt.tight_layout()
     plt.show()
 
-# Function to run crown detection accuracy test
+#Funktion til at køre crown detecter test
 def run_crown_detection_accuracy_test(image_path, crown_detector, label_file):
     true_crowns = load_true_crown_labels_from_csv(label_file)
     predicted_crowns = {}
@@ -120,7 +120,7 @@ def run_crown_detection_accuracy_test(image_path, crown_detector, label_file):
     cm = confusion_matrix(all_true, all_predicted, labels=[1, 0])
     plot_confusion_matrix(cm, labels=["Crown", "No Crown"])
 
-# Main function
+# Main funktionen til at køre alle tests
 def main():
     image_path = r"splitted_dataset/test/cropped"
     label_file = r"ground_truth.csv"

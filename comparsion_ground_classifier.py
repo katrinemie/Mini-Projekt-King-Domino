@@ -29,7 +29,7 @@ def compare_classifications(gt_path, pred_path):
             if pred_label == true_label:
                 correct += 1
         else:
-            print(f" hmmm, jeg mangler forudsigelse for tile: {key}")
+            print(f"Mangler forudsigelse for tile: {key}")
 
     accuracy = (correct / total) * 100 if total > 0 else 0
     print(f"\nAccuracy: {accuracy:.2f}% ({correct}/{total})")
