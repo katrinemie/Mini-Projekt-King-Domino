@@ -8,12 +8,14 @@ from matplotlib.patches import Patch
 
 
 class NeighbourDetection:
+    # Initialiserer objektet og finder billeder i inputmappen
+    # Sætter terræntyper og nabo-retninger
     def __init__(self, input_folder):
         self.input_folder = input_folder
         self.image_paths = glob.glob(os.path.join(input_folder, '*.jpg'))
         
         if not self.image_paths:
-            raise FileNotFoundError("øv. Ingen billeder fundet i inputmappen.")
+            print("Ingen billeder fundet i inputmappen.")
         
         #terræntype farver og klasser
         self.terrain_colors = {
@@ -29,8 +31,8 @@ class NeighbourDetection:
         self.classes = list(self.terrain_colors.keys())
         self.directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]  #Op, ned, venstre, højre
 
+    # Klassificerer en tile baseret på farve
     def classify_tile(self, tile):
-        """Klassificer en tile baseret på farve"""
         hsv = cv2.cvtColor(tile, cv2.COLOR_BGR2HSV)
         hue, sat, val = np.median(hsv.reshape(-1, 3), axis=0)
 
@@ -50,13 +52,13 @@ class NeighbourDetection:
             return "Home"
         return "Unknown"
 
+    # Opdeler billedet i et 5x5 grid
     def split_to_tiles(self, image):
-        """Opdel billede i 5x5 grid"""
         h, w = image.shape[:2]
         return [np.hsplit(row, 5) for row in np.vsplit(image, 5)]
 
+    # Finder naboer af samme type og tæller dem
     def find_neighbours(self, labels):
-        """Find naboer af samme type og returner forbindelser og antal naboer per tile"""
         connections = []
         neighbour_counts = np.zeros((5, 5), dtype=int)
         
@@ -70,8 +72,8 @@ class NeighbourDetection:
                         connections.append(((r, c), (nr, nc)))
         return connections, neighbour_counts
 
+    # Visualiserer originalbilledet og naboanalyse
     def visualize_results(self, image, labels, connections, neighbour_counts):
-        """Visualiser naboanalyse resultater"""
         plt.figure(figsize=(14, 6))
         
         # Originalbillede
@@ -80,7 +82,7 @@ class NeighbourDetection:
         plt.title('Originalbillede')
         plt.axis('off')
         
-        #Naboanalyse visualisering
+        #Visualisering af naboer
         plt.subplot(1, 2, 2)
         h, w = image.shape[:2]
         tile_h, tile_w = h // 5, w // 5
@@ -105,7 +107,7 @@ class NeighbourDetection:
                     [r1*tile_h + tile_h/2, r2*tile_h + tile_h/2],
                     'white', linewidth=1.5, alpha=0.7)
         
-        #Opret legend i den ønskede rækkefølge
+        #Opret legend i den ønskede rækkefølge 
         desired_order = ["Field", "Forest", "Lake", "Grassland", "Swamp", "Mine", "Home", "Unknown"]
         legend_elements = [Patch(facecolor=np.array(self.terrain_colors[name])/255, label=name) 
                          for name in desired_order]
@@ -116,23 +118,21 @@ class NeighbourDetection:
         plt.axis('off')
         plt.tight_layout()
         plt.show()
-
+        
+    # Behandler alle billeder i inputmappen og visualiserer naboanalyserne
     def process_images(self):
-        """Hovedprocessen der behandler alle billeder"""
         for path in self.image_paths:
             img = cv2.imread(path)
             if img is None:
-                print(f"øvøv Kunne ikke indlæse billede: {path}")
                 continue
 
             #Klassificer tiles
             tiles = self.split_to_tiles(img)
             labels = [[self.classify_tile(tile) for tile in row] for row in tiles]
             
-            #Find naboer
+            #Finder naboer
             connections, neighbour_counts = self.find_neighbours(labels)
             
-            #Vis resultater
             print(f"\nAnalyserer {os.path.basename(path)}:")
             self.visualize_results(img, labels, connections, neighbour_counts)
 

@@ -27,7 +27,7 @@ def load_true_crown_labels_from_csv(label_file):
 
     return labels
 
-#evaluere kronedetektion
+#Evaluere kronedetektion
 def evaluate_crown_detection(true_crowns, predicted_crowns):
     all_true = []
     all_predicted = []
@@ -43,7 +43,7 @@ def evaluate_crown_detection(true_crowns, predicted_crowns):
     accuracy = accuracy_score(all_true, all_predicted)
     return precision, recall, f1, accuracy, all_true, all_predicted
 
-#plot confusion matrix 
+#Plot confusion matrix 
 def plot_confusion_matrix(cm, labels):
     fig, ax = plt.subplots(figsize=(6, 6))
     cmap = plt.cm.Blues
@@ -76,7 +76,7 @@ def plot_confusion_matrix(cm, labels):
     plt.tight_layout()
     plt.show()
 
-#kronedetektion test
+#Kronedetektion test
 def run_crown_detection_accuracy_test(image_path, crown_detector, label_file):
     true_crowns = load_true_crown_labels_from_csv(label_file)
     predicted_crowns = {}

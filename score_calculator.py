@@ -6,6 +6,7 @@ import csv
 import matplotlib.pyplot as plt
 
 class BoardScorer:
+    # Initialiserer BoardScorer objektet med inputfolder, ground truth CSV, output folder, tile størrelse og board dimensioner.
     def __init__(self, input_folder, ground_truth_csv, output_folder="outputs", tile_size=100, rows=5, cols=5):
         self.input_folder = input_folder
         self.ground_truth_csv = ground_truth_csv
@@ -16,10 +17,12 @@ class BoardScorer:
         os.makedirs(self.output_folder, exist_ok=True)
         self.score_data = []
 
+    # Opdeler et billede i tiles baseret på dets dimensioner og tile størrelse
     def get_tiles(self, image):
         return [[image[y*self.tile_size:(y+1)*self.tile_size, x*self.tile_size:(x+1)*self.tile_size] 
                  for x in range(self.cols)] for y in range(self.rows)]
 
+    # Bestemmer terrain for en tile baseret på dens farve i HSV farverummet
     def get_terrain(self, tile):
         hsv_tile = cv.cvtColor(tile, cv.COLOR_BGR2HSV)
         hue, saturation, value = np.median(hsv_tile, axis=(0, 1))
@@ -39,6 +42,7 @@ class BoardScorer:
             return "Home"
         return "Unknown"
 
+    # Tæller antallet af kronede områder (fx blomster eller objekter) i en tile ved at finde konturer i en farvemaskering
     def count_crowns(self, tile):
         hsv = cv.cvtColor(tile, cv.COLOR_BGR2HSV)
         lower_yellow = np.array([22, 140, 140])
@@ -66,6 +70,7 @@ class BoardScorer:
         area_scores = {}
         area_id = 0
 
+        # Finder områder (terraintyper) på boardet ved at køre en dybde-først-søgning (DFS) på sammenhængende tiles
         def dfs(r, c, terrain):
             if r < 0 or r >= self.rows or c < 0 or c >= self.cols:
                 return 0, 0, []
@@ -94,6 +99,7 @@ class BoardScorer:
 
         return area_map, area_scores
 
+    # Annoterer et billede med områder, scores og andre oplysninger (som kronetælling) og gemmer det som et billede
     def annotate_board(self, image, board, area_map, area_scores, total_score, filename):
         font = cv.FONT_HERSHEY_SIMPLEX
         scale = 0.4
@@ -129,6 +135,7 @@ class BoardScorer:
 
         return overlay
 
+    # Gemmer score dataene i en CSV-fil
     def save_score_csv(self):
         path = os.path.join(self.output_folder, "scores.csv")
         with open(path, mode="w", newline="") as file:
@@ -136,6 +143,7 @@ class BoardScorer:
             writer.writerow(["Image", "Score"])
             writer.writerows(self.score_data)
 
+    # Sammenligner de beregnede scores med de sande scores i ground truth CSV'en og beregner fejl
     def compare_with_ground_truth(self):
         ground_truth = {}
         with open(self.ground_truth_csv, mode="r") as file:
@@ -157,6 +165,7 @@ class BoardScorer:
         else:
             print("\u26a0\ufe0f Ingen matchende billeder fundet i ground truth CSV.")
 
+    # Kører hele scoring process og gemmer resultaterne i output folderen og CSV fil
     def run(self):
         for filename in sorted(os.listdir(self.input_folder)):
             if filename.endswith(".jpg"):

@@ -89,7 +89,7 @@ def generate_csv_from_folders(folder_path, output_csv_path):
         writer.writerows(rows)
 
 
-input_folder = r"C:\Users\katri\Documents\2 semester\Design og udvikling af ai systemer\Mini projekt king domino\King Domino dataset\Cropped and perspective corrected boards"
+input_folder = r"King Domino dataset/Cropped and perspective corrected boards"
 output_folder = r"C:\Users\katri\Desktop\Kingkat"
 
 process_all_boards(input_folder, output_folder)
