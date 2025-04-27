@@ -10,24 +10,28 @@ from tile_classifier import TileClassifierSVM
 from score_calculator import BoardScorer
 from neighbour_detection import NeighbourDetection
 
-#Funktion til at hente de faktiske etiketter for kroner fra en CSV-fil
+# Function to load true crown labels from CSV
 def load_true_crown_labels_from_csv(label_file):
-    df = pd.read_csv(label_file)
-    crowns_data = df[['image_id', 'x', 'y', 'crowns']]
-    labels = {}
+    try:
+        df = pd.read_csv(label_file)
+        crowns_data = df[['image_id', 'x', 'y', 'crowns']]
+        labels = {}
 
-    for _, row in crowns_data.iterrows():
-        image_id = row['image_id']
-        x, y, crowns = row['x'], row['y'], row['crowns']
+        for _, row in crowns_data.iterrows():
+            image_id = row['image_id']
+            x, y, crowns = row['x'], row['y'], row['crowns']
 
-        if image_id not in labels:
-            labels[image_id] = []
+            if image_id not in labels:
+                labels[image_id] = []
 
-        labels[image_id].append((x, y, crowns))
+            labels[image_id].append((x, y, crowns))
 
-    return labels
+        return labels
+    except Exception as e:
+        print(f"Error loading labels from CSV: {e}")
+        return {}
 
-#Evaluere kronedetektion
+# Function to evaluate crown detection
 def evaluate_crown_detection(true_crowns, predicted_crowns):
     all_true = []
     all_predicted = []
@@ -37,13 +41,14 @@ def evaluate_crown_detection(true_crowns, predicted_crowns):
         for (x, y, true_crowns_count), (px, py, predicted_crowns_count) in zip(true_data, predicted_data):
             all_true.append(true_crowns_count)
             all_predicted.append(predicted_crowns_count)
+    
     precision = precision_score(all_true, all_predicted, average='macro', zero_division=0)
     recall = recall_score(all_true, all_predicted, average='macro', zero_division=0)
     f1 = f1_score(all_true, all_predicted, average='macro', zero_division=0)
     accuracy = accuracy_score(all_true, all_predicted)
     return precision, recall, f1, accuracy, all_true, all_predicted
 
-#Plot confusion matrix 
+# Function to plot confusion matrix
 def plot_confusion_matrix(cm, labels):
     fig, ax = plt.subplots(figsize=(6, 6))
     cmap = plt.cm.Blues
@@ -76,7 +81,7 @@ def plot_confusion_matrix(cm, labels):
     plt.tight_layout()
     plt.show()
 
-#Kronedetektion test
+# Function to run crown detection accuracy test
 def run_crown_detection_accuracy_test(image_path, crown_detector, label_file):
     true_crowns = load_true_crown_labels_from_csv(label_file)
     predicted_crowns = {}
@@ -106,7 +111,7 @@ def run_crown_detection_accuracy_test(image_path, crown_detector, label_file):
 
     precision, recall, f1, acc, all_true, all_predicted = evaluate_crown_detection(true_crowns, predicted_crowns)
 
-    print("\nCrown Detection Resultater:")
+    print("\nCrown Detection Results:")
     print(f"Accuracy: {acc:.2f}")
     print(f"Precision: {precision:.2f}")
     print(f"Recall:    {recall:.2f}")
@@ -115,7 +120,7 @@ def run_crown_detection_accuracy_test(image_path, crown_detector, label_file):
     cm = confusion_matrix(all_true, all_predicted, labels=[1, 0])
     plot_confusion_matrix(cm, labels=["Crown", "No Crown"])
 
-#Main funktion til at køre alle tests
+# Main function
 def main():
     image_path = r"splitted_dataset/test/cropped"
     label_file = r"ground_truth.csv"
@@ -135,16 +140,16 @@ def main():
         threshold=0.6
     )
 
-    print("\nStarter Crown Detection Test")
+    print("\nStarting Crown Detection Test")
     run_crown_detection_accuracy_test(image_path, crown_detector, label_file)
 
-    print("\nStarter Tile Classifier Test")
+    print("\nStarting Tile Classifier Test")
     classifier = TileClassifierSVM('splitted_dataset/test/cropped', 'ground_truth.csv')
     classifier.train_svm()
     if classifier.model:
         classifier.evaluate()
 
-    print("\nStarter Score Calculator Test")
+    print("\nStarting Score Calculator Test")
     scorer = BoardScorer(
         input_folder="splitted_dataset/test/cropped",
         ground_truth_csv="ground_truth_scores.csv",
@@ -152,7 +157,7 @@ def main():
     )
     scorer.run()
 
-    print("\nStarter Neighbour Detection Test")
+    print("\nStarting Neighbour Detection Test")
     neighbour_detector = NeighbourDetection('splitted_dataset/test/cropped')
     neighbour_detector.process_images()
 
