@@ -10,7 +10,7 @@ from tile_classifier import TileClassifierSVM
 from score_calculator import BoardScorer
 from neighbour_detection import NeighbourDetection
 
-#Funktion til at indlæse de sande mærkater for kroner fra en CSV-fil
+#Funktion til at hente de faktiske etiketter for kroner fra en CSV-fil
 def load_true_crown_labels_from_csv(label_file):
     df = pd.read_csv(label_file)
     crowns_data = df[['image_id', 'x', 'y', 'crowns']]
@@ -115,7 +115,7 @@ def run_crown_detection_accuracy_test(image_path, crown_detector, label_file):
     cm = confusion_matrix(all_true, all_predicted, labels=[1, 0])
     plot_confusion_matrix(cm, labels=["Crown", "No Crown"])
 
-#Hovedfunktion
+#Main funktion til at køre alle tests
 def main():
     image_path = r"splitted_dataset/test/cropped"
     label_file = r"ground_truth.csv"

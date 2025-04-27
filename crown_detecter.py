@@ -34,23 +34,17 @@ class CrownDetector:
         self.templates = self.load_templates()
 
         image_paths = glob.glob(os.path.join(self.input_folder, '*.jpg'))
-        if not image_paths:
-            raise FileNotFoundError("Ingen billeder fundet i input-mappen.")
         self.image_paths = image_paths
 
         os.makedirs(self.output_folder, exist_ok=True)
 
-    def load_templates(self):
-        templates = []
-        for path in self.template_paths:
-            template = cv2.imread(path)
-            if template is None:
-                print(f"⚠️ Kunne ikke finde template: {path}")
-                continue
-            templates.append(cv2.resize(template, (34, 29)))
-        if not templates:
-            raise ValueError("Ingen valide templates blev indlæst!")
-        return templates
+        def load_templates(self):
+            templates = []
+            for path in self.template_paths:
+                    template = cv2.imread(path)
+                    templates.append(cv2.resize(template, (34, 29))) if template is not None else None
+            return templates
+
 
     def rotate_image(self, image, angle):
         h, w = image.shape[:2]
@@ -111,7 +105,7 @@ class CrownDetector:
             filename = os.path.basename(img_path)
             board_img = cv2.imread(img_path)
             if board_img is None:
-                print(f"⚠️ Kunne ikke læse {filename}")
+                print(f" Kunne ikke indlæse {filename}")
                 continue
 
             crown_counts = self.detect_crowns(board_img, filename)
@@ -132,7 +126,7 @@ class CrownDetector:
             cm = confusion_matrix(y_true, y_pred, labels=[1, 0])
             acc = accuracy_score(y_true, y_pred) * 100
 
-            print(f"\n✅ Samlet Crown Detection Accuracy: {acc:.2f}%")
+            print(f"\nSamlet Crown Detection Accuracy: {acc:.2f}%")
             print("Confusion Matrix:\n", cm)
 
             plt.figure(figsize=(6, 5))
@@ -144,28 +138,12 @@ class CrownDetector:
             plt.title('Confusion Matrix for Crown Detection')
             plt.tight_layout()
             plt.show()
-        else:
-            print("❌ Ingen data til beregning af confusion matrix.")
+        
 
 if __name__ == "__main__":
     detector = CrownDetector(
         input_folder='splitted_dataset/train/cropped',
-        template_paths=[
-            'board_templates/krone_image1.png',
-            'board_templates/krone_image2.png',
-            'board_templates/krone_image3.png',
-            'board_templates/krone_image4.png',
-            'board_templates/krone_image5.png',
-            'board_templates/krone_image6.png',
-            'board_templates/krone_image7.png',
-            'board_templates/krone_image8.png',
-            'board_templates/krone_image9.png',
-            'board_templates/krone_image10.png',
-            'board_templates/krone_image11.png',
-            'board_templates/krone_image12.png',
-            'board_templates/krone_image13.png',
-            'board_templates/krone_image14.png'
-        ],
+        template_paths=[f'board_templates/krone_image{i}.png' for i in range(1, 15)],
         output_folder='output',
         scales=[0.8, 1.0, 1.2],
         angles=[0, 90, 180, 270],
@@ -177,4 +155,3 @@ if __name__ == "__main__":
 
     # Kør detektor
     detector.process_images(ground_truth)
-
